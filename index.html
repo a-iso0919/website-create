@@ -3,10 +3,29 @@
 <head>
   <meta charset="UTF-8">
   <title>無料で作るWebサイト</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <style>
+    /* 簡易スタイル */
+    #searchBox { margin: 16px 0; }
+    #searchResults { margin-top: 12px; }
+    .result { padding: 8px; border-bottom: 1px solid #eee; }
+    .result a { text-decoration: none; color: #0366d6; font-weight: bold; }
+    .result p { margin: 4px 0 0; color: #333; }
+  </style>
 </head>
 <body>
   <h1>はじめまして！</h1>
-  <p>これはGitHub Pagesで無料公開しています。</p>
-  <p>モンハンのモンスターについて、まとめのページを作成する予定です。</p>
+  <p>モンハンの情報を発信していきたいと思います！</p>
+
+  <!-- 検索UI -->
+  <div id="searchBox">
+    <input id="q" type="search" placeholder="サイト内を検索..." style="width:100%;padding:8px;font-size:16px;">
+  </div>
+  <div id="searchResults"></div>
+
+  <!-- Fuse.js（CDN） -->
+  <script src="https://cdn.jsdelivr.net/npm/fuse.js@6.6.2/dist/fuse.min.js"></script>
+  <!-- 自作検索スクリプト -->
+  <script src="search.js"></script>
 </body>
 </html>
