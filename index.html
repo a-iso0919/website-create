@@ -1,31 +1,94 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8">
-  <title>無料で作るWebサイト</title>
-  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>無料で作るWebサイト - 検索</title>
+
   <style>
-    /* 簡易スタイル */
-    #searchBox { margin: 16px 0; }
-    #searchResults { margin-top: 12px; }
-    .result { padding: 8px; border-bottom: 1px solid #eee; }
-    .result a { text-decoration: none; color: #0366d6; font-weight: bold; }
-    .result p { margin: 4px 0 0; color: #333; }
+    :root{
+      --bg: #f6f8fb;
+      --card: #ffffff;
+      --accent: #0b76ef;
+      --accent-600: #075fb4;
+      --muted: #6b7280;
+      --text: #0f172a;
+      --radius: 10px;
+      --shadow: 0 6px 18px rgba(12, 30, 60, 0.08);
+    }
+    html,body{height:100%;margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial;}
+    body{background:linear-gradient(180deg,#f8fbff 0%,var(--bg) 100%);color:var(--text);-webkit-font-smoothing:antialiased;}
+    .wrap{max-width:900px;margin:36px auto;padding:24px;}
+    header{display:flex;align-items:center;gap:16px;margin-bottom:18px;}
+    .logo{
+      width:56px;height:56px;border-radius:12px;background:linear-gradient(135deg,var(--accent),var(--accent-600));
+      display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:18px;box-shadow:var(--shadow);
+    }
+    h1{margin:0;font-size:20px;}
+    p.lead{margin:6px 0 0;color:var(--muted);font-size:14px;}
+
+    /* 検索エリア */
+    .search-area{margin-top:20px;}
+    .search-box{
+      background:var(--card);border-radius:999px;padding:10px 12px;display:flex;align-items:center;gap:8px;box-shadow:var(--shadow);
+    }
+    .search-box svg{width:20px;height:20px;flex:0 0 20px;opacity:0.75}
+    #q{border:0;outline:0;font-size:16px;flex:1;background:transparent;padding:8px;}
+    .btn-clear{background:transparent;border:0;color:var(--muted);cursor:pointer;padding:6px;border-radius:8px;}
+    .btn-clear:hover{background:#f1f5f9;color:var(--text);}
+
+    /* 結果 */
+    #searchResults{margin-top:18px;}
+    .result{background:var(--card);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:6px;box-shadow:var(--shadow);}
+    .result + .result{margin-top:12px;}
+    .result a.title{color:var(--accent);font-weight:600;text-decoration:none;font-size:16px;}
+    .result p.snip{margin:0;color:var(--muted);font-size:14px;}
+    .badge{display:inline-block;background:#eef6ff;color:var(--accent);font-weight:600;padding:6px 8px;border-radius:999px;font-size:12px;}
+    mark{background: #ffef99; color: inherit; padding: 0 2px; border-radius: 3px;}
+
+    /* small helpers */
+    .meta{display:flex;gap:8px;align-items:center;font-size:13px;color:var(--muted)}
+    .no-results{color:var(--muted);padding:18px;background:transparent;border-radius:8px;text-align:center;}
+
+    @media (max-width:520px){
+      .wrap{padding:16px;margin:18px;}
+      .logo{width:46px;height:46px;font-size:16px}
+    }
   </style>
 </head>
 <body>
-  <h1>はじめまして！</h1>
-  <p>モンハンの情報を発信していきたいと思います！</p>
+  <div class="wrap">
+    <header>
+      <div class="logo">WEB</div>
+      <div>
+        <h1>サイト内検索</h1>
+        <p class="lead">モンスター名で検索すると種別がわかります。（例：「リオレウス」→「飛竜種」）</p>
+      </div>
+    </header>
 
-  <!-- 検索UI -->
-  <div id="searchBox">
-    <input id="q" type="search" placeholder="サイト内を検索..." style="width:100%;padding:8px;font-size:16px;">
+    <div class="search-area">
+      <div class="search-box" role="search" aria-label="サイト内検索">
+        <!-- 検索アイコン -->
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M21 21l-4.35-4.35" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+          <circle cx="11" cy="11" r="6" stroke="currentColor" stroke-width="1.6" fill="none"/>
+        </svg>
+
+        <input id="q" type="search" placeholder="モンスター名やキーワードで検索（例: リオレウス）" aria-label="検索語" autocomplete="off" />
+        <button class="btn-clear" id="clearBtn" title="クリア" aria-label="検索をクリア" hidden>
+          <!-- × アイコン -->
+          <svg viewBox="0 0 24 24" fill="none" width="16" height="16" aria-hidden="true">
+            <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+      </div>
+
+      <div id="searchResults" aria-live="polite"></div>
+    </div>
   </div>
-  <div id="searchResults"></div>
 
-  <!-- Fuse.js（CDN） -->
+  <!-- Fuse.js CDN -->
   <script src="https://cdn.jsdelivr.net/npm/fuse.js@6.6.2/dist/fuse.min.js"></script>
-  <!-- 自作検索スクリプト -->
   <script src="search.js"></script>
 </body>
 </html>
