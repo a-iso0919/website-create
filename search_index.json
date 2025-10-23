@@ -8,5 +8,15 @@
     "title": "サンプルページ",
     "url": "sample.html",
     "content": "このページはサンプルのコンテンツです。検索機能のテスト用に作成しました。"
+  },
+  {
+    "title": "リオレウス",
+    "url": "monsters/rathalos.html",
+    "content": "リオレウス - 種別: 飛竜種"
+  },
+  {
+    "title": "イャンクック",
+    "url": "monsters/yan-kukku.html",
+    "content": "イャンクック - 種別: 鳥竜種"
   }
 ]
