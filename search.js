@@ -1,7 +1,12 @@
-// 読み込んでFuseで検索・結果を描画する簡易スクリプト
 (async function() {
   const resEl = document.getElementById('searchResults');
   const qEl = document.getElementById('q');
+
+  // 同義語マップ（検索ワードにこれが含まれていれば対応する種別を返す）
+  const synonyms = {
+    'リオレウス': '飛竜種',
+    'イャンクック': '鳥竜種'
+  };
 
   // search_index.json を読み込む
   let index = [];
@@ -14,14 +19,14 @@
     return;
   }
 
-  // Fuse の設定（重み付けやヒット項目の調整はここを変える）
+  // Fuse の設定
   const fuse = new Fuse(index, {
     keys: [
       { name: 'title', weight: 0.7 },
       { name: 'content', weight: 0.3 }
     ],
     includeMatches: true,
-    threshold: 0.4, // 0.0=厳密、1.0=緩い
+    threshold: 0.4,
   });
 
   function renderResults(results) {
@@ -30,29 +35,49 @@
       return;
     }
     resEl.innerHTML = results.map(r => {
-      const item = r.item || r; // r が Fuse の結果か生データかで分岐
+      const item = r.item || r; // Fuse の結果オブジェクトか生データか
       const snippet = (item.content || '').slice(0, 150).replace(/\n/g,' ');
       return `<div class="result">
-                <a href="${item.url}">${item.title}</a>
+                <a href="${item.url || '#'}">${item.title}</a>
                 <p>${snippet}${item.content && item.content.length>150 ? '…' : ''}</p>
               </div>`;
     }).join('');
   }
 
-  // 入力イベント（debounce すると良いが簡易実装）
+  // 入力イベント（デバウンス付き）
   let timer = null;
   qEl.addEventListener('input', (e) => {
     clearTimeout(timer);
     const v = e.target.value.trim();
     timer = setTimeout(() => {
       if (v === '') {
-        // 空なら全件表示（必要なら変える）
         renderResults([]);
         return;
       }
+
+      // 1) 同義語マップにマッチ（部分一致）するかチェック — 優先して表示
+      const synResults = [];
+      for (const key in synonyms) {
+        if (Object.prototype.hasOwnProperty.call(synonyms, key)) {
+          if (v.indexOf(key) !== -1) { // 部分一致でOK
+            synResults.push({
+              title: key,
+              url: '#', // 必要なら monsters の個別ページの URL に変更
+              content: synonyms[key]
+            });
+          }
+        }
+      }
+      if (synResults.length > 0) {
+        // 同義語ヒットは即表示
+        renderResults(synResults);
+        return;
+      }
+
+      // 2) 通常の Fuse 検索
       const results = fuse.search(v);
+      // results は Fuse のオブジェクト配列。renderResults で処理可能。
       renderResults(results);
     }, 200);
   });
-
 })();
