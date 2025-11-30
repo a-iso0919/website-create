@@ -1,94 +1,105 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>無料で作るWebサイト - 検索</title>
-
+  <meta charset="UTF-8">
+  <title>カフェ予約管理</title>
   <style>
-    :root{
-      --bg: #f6f8fb;
-      --card: #ffffff;
-      --accent: #0b76ef;
-      --accent-600: #075fb4;
-      --muted: #6b7280;
-      --text: #0f172a;
-      --radius: 10px;
-      --shadow: 0 6px 18px rgba(12, 30, 60, 0.08);
-    }
-    html,body{height:100%;margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial;}
-    body{background:linear-gradient(180deg,#f8fbff 0%,var(--bg) 100%);color:var(--text);-webkit-font-smoothing:antialiased;}
-    .wrap{max-width:900px;margin:36px auto;padding:24px;}
-    header{display:flex;align-items:center;gap:16px;margin-bottom:18px;}
-    .logo{
-      width:56px;height:56px;border-radius:12px;background:linear-gradient(135deg,var(--accent),var(--accent-600));
-      display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:18px;box-shadow:var(--shadow);
-    }
-    h1{margin:0;font-size:20px;}
-    p.lead{margin:6px 0 0;color:var(--muted);font-size:14px;}
-
-    /* 検索エリア */
-    .search-area{margin-top:20px;}
-    .search-box{
-      background:var(--card);border-radius:999px;padding:10px 12px;display:flex;align-items:center;gap:8px;box-shadow:var(--shadow);
-    }
-    .search-box svg{width:20px;height:20px;flex:0 0 20px;opacity:0.75}
-    #q{border:0;outline:0;font-size:16px;flex:1;background:transparent;padding:8px;}
-    .btn-clear{background:transparent;border:0;color:var(--muted);cursor:pointer;padding:6px;border-radius:8px;}
-    .btn-clear:hover{background:#f1f5f9;color:var(--text);}
-
-    /* 結果 */
-    #searchResults{margin-top:18px;}
-    .result{background:var(--card);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:6px;box-shadow:var(--shadow);}
-    .result + .result{margin-top:12px;}
-    .result a.title{color:var(--accent);font-weight:600;text-decoration:none;font-size:16px;}
-    .result p.snip{margin:0;color:var(--muted);font-size:14px;}
-    .badge{display:inline-block;background:#eef6ff;color:var(--accent);font-weight:600;padding:6px 8px;border-radius:999px;font-size:12px;}
-    mark{background: #ffef99; color: inherit; padding: 0 2px; border-radius: 3px;}
-
-    /* small helpers */
-    .meta{display:flex;gap:8px;align-items:center;font-size:13px;color:var(--muted)}
-    .no-results{color:var(--muted);padding:18px;background:transparent;border-radius:8px;text-align:center;}
-
-    @media (max-width:520px){
-      .wrap{padding:16px;margin:18px;}
-      .logo{width:46px;height:46px;font-size:16px}
-    }
+    body { font-family: 'sans-serif'; }
+    h1 { color: #4a4a4a; }
+    form, table { margin: 20px 0; }
+    input, select { padding: 4px 8px; margin: 5px; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
+    th { background-color: #f5f5f5; }
   </style>
 </head>
 <body>
-  <div class="wrap">
-    <header>
-      <div class="logo">WEB</div>
-      <div>
-        <h1>サイト内検索</h1>
-        <p class="lead">モンスター名で検索すると種別がわかります。（例：「リオレウス」→「飛竜種」）</p>
-      </div>
-    </header>
+  <h1>カフェ予約登録</h1>
+  <form id="resForm">
+    <label>
+      日付:
+      <input type="date" id="date" required>
+    </label>
+    <label>
+      時間帯:
+      <select id="time" required>
+        <option value="">選択してください</option>
+        <option value="11:00">11:00～</option>
+        <option value="13:00">13:00～</option>
+      </select>
+    </label>
+    <label>
+      名前（カタカナ）:
+      <input type="text" id="name" pattern="^[ァ-ヴー]+$" required placeholder="例：カトウ">
+    </label>
+    <label>
+      電話番号:
+      <input type="tel" id="tel" pattern="^[0-9\-]+$" required placeholder="例：090-1234-5678">
+    </label>
+    <button type="submit">予約登録</button>
+  </form>
 
-    <div class="search-area">
-      <div class="search-box" role="search" aria-label="サイト内検索">
-        <!-- 検索アイコン -->
-        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <path d="M21 21l-4.35-4.35" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
-          <circle cx="11" cy="11" r="6" stroke="currentColor" stroke-width="1.6" fill="none"/>
-        </svg>
+  <h2>予約一覧</h2>
+  <table id="list">
+    <thead>
+      <tr>
+        <th>日付</th>
+        <th>時間帯</th>
+        <th>名前</th>
+        <th>電話番号</th>
+      </tr>
+    </thead>
+    <tbody>
+    </tbody>
+  </table>
 
-        <input id="q" type="search" placeholder="モンスター名やキーワードで検索（例: リオレウス）" aria-label="検索語" autocomplete="off" />
-        <button class="btn-clear" id="clearBtn" title="クリア" aria-label="検索をクリア" hidden>
-          <!-- × アイコン -->
-          <svg viewBox="0 0 24 24" fill="none" width="16" height="16" aria-hidden="true">
-            <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
-        </button>
-      </div>
+  <script>
+    // データ保存用（LocalStorage）
+    function getReservations() {
+      return JSON.parse(localStorage.getItem("reservations") || "[]");
+    }
+    function saveReservations(res) {
+      localStorage.setItem("reservations", JSON.stringify(res));
+    }
 
-      <div id="searchResults" aria-live="polite"></div>
-    </div>
-  </div>
+    function renderList() {
+      const resList = getReservations();
+      const tbody = document.querySelector("#list tbody");
+      tbody.innerHTML = ""; // 一度クリア
+      resList.forEach(r => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `<td>${r.date}</td>
+                        <td>${r.time}</td>
+                        <td>${r.name}</td>
+                        <td>${r.tel}</td>`;
+        tbody.appendChild(tr);
+      });
+    }
 
-  <!-- Fuse.js CDN -->
-  <script src="https://cdn.jsdelivr.net/npm/fuse.js@6.6.2/dist/fuse.min.js"></script>
-  <script src="search.js"></script>
+    document.getElementById("resForm").onsubmit = function(e) {
+      e.preventDefault();
+      const date = document.getElementById("date").value;
+      const time = document.getElementById("time").value;
+      const name = document.getElementById("name").value.trim();
+      const tel = document.getElementById("tel").value.trim();
+
+      // 入力バリデーション
+      if (!(/^[ァ-ヴー]+$/.test(name))) {
+        alert("名前はカタカナで入力してください");
+        return;
+      }
+
+      const reservations = getReservations();
+      // 保存
+      reservations.push({ date, time, name, tel });
+      saveReservations(reservations);
+      renderList();
+      // フォームリセット
+      document.getElementById("resForm").reset();
+    };
+
+    // 初回表示
+    renderList();
+  </script>
 </body>
 </html>
