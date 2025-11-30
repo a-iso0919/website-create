@@ -1,157 +1,128 @@
-<!-- 清水の森カフェ予約システム -->
 <!DOCTYPE html>
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
   <title>清水の森 - カフェ予約管理</title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <!-- Google Fontsでカフェ風フォント例 -->
   <link href="https://fonts.googleapis.com/css2?family=Zen+Kurenaido&family=Montserrat:wght@500;700&display=swap" rel="stylesheet">
   <style>
     body {
-      font-family: 'Zen Kurenaido', 'Meiryo', 'Montserrat', 'sans-serif';
-      background: #f3f0ed url('https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=1200&q=80') no-repeat center center fixed;
-      background-size: cover;
-      color: #2c261e; margin: 0; min-height: 100vh; max-width:100vw; overflow-x:hidden;
+      font-family: 'Zen Kurenaido', 'Meiryo', 'Montserrat', sans-serif;
+      background: #f8f6f3 URL('https://images.unsplash.com/photo-1464983953574-0892a716854b?auto=format&fit=crop&w=1400&q=80') no-repeat center center fixed;
+      background-size: cover; color: #2c261e; margin: 0; min-height: 100vh; max-width:100vw; overflow-x:hidden;
     }
     .container {
-      max-width: 850px;
+      max-width: 950px;
       margin: 0 auto 40px auto;
-      background: rgba(255,255,255,0.92);
+      background: rgba(255,255,255,0.96);
       border-radius: 22px;
       box-shadow: 0 8px 40px #d6c8b277, 0 2px 10px #d1be9c55;
-      padding: 32px 8vw 24px 8vw;
+      padding: 30px 2vw 22px 2vw;
+      position: relative;
     }
     h1 {
       font-family: Montserrat, 'Zen Kurenaido', sans-serif;
-      font-size: 2.38em; color: #5b4327; font-weight: 700;
-      text-align: center; margin: 0 0 22px 0;
+      font-size: 2.38em; color: #4f422d; font-weight: 700;
+      text-align: center; margin: 0 0 18px 0;
       letter-spacing: 2.5px;
-      text-shadow: 0 2px 9px #e9dccc99;
+      text-shadow: 0 2px 13px #bfb6af33;
     }
     .subtext {
-      text-align:center; color: #846546; font-size:1.13em; margin-bottom:24px; letter-spacing:0.8px;
+      text-align:center; color: #7b6955; font-size:1.15em; margin-bottom:18px; letter-spacing:0.8px;
     }
     form {
       background: #fffef7;
-      border-radius: 18px;
-      padding: 27px 3vw 21px 3vw;
-      margin-bottom: 40px;
+      border-radius: 15px;
+      padding: 24px 2vw 18px 2vw;
+      margin-bottom: 38px;
       box-shadow: 0 2px 16px #e9e3d1;
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(180px,1fr));
-      gap: 20px 23px;
-      font-size: 1.06em;
+      grid-template-columns: repeat(auto-fit, minmax(170px,1fr));
+      gap: 18px 22px;
+      font-size: 1.07em;
     }
     label {
-      font-size: 1.11em; letter-spacing:0.3px; font-weight:500;
-      margin-bottom:2px; margin-top: 3px; display:flex; flex-direction:column; gap:6px;
+      font-size: 1.09em; font-weight:500; margin-bottom:2px; margin-top: 2px; display:flex; flex-direction:column; gap:7px;
     }
     input, select, textarea {
-      padding: 7px 11px; border-radius: 10px;
-      border: 1.7px solid #bba484;
+      padding: 7px 9px; border-radius: 9px;
+      border: 1.6px solid #bba484;
       font-size: 1.07em; background: #f7f4ed;
     }
     .table-choice {
-      display: flex; flex-wrap: wrap; gap: 10px 14px; margin: 6px 0;
-      align-items: center;
+      display: flex; flex-wrap: wrap; gap: 10px 14px; margin: 6px 0; align-items: center;
     }
-    .table-checkbox {margin-right: 2px; vertical-align: middle; transform: scale(1.08);}
-    .table-label {margin-right: 7px; font-size: 1.04em;}
+    .table-checkbox {margin-right: 2px; vertical-align: middle; transform: scale(1.04);}
+    .table-label {margin-right: 8px; font-size: 1em;}
     .cap-text {
       color: #795312;
-      font-size: 0.98em;
+      font-size: 0.93em;
       background: #eed8b0;
-      padding: 1.4px 8px 2px 8px;
-      border-radius: 11px; margin-left: 5px;
-      letter-spacing: 1px;
+      padding: 1.2px 8px 2px 8px;
+      border-radius: 10px; margin-left: 5px;
       box-shadow: 0 1px 4px #eed8b0b6;
     }
     .time-choices {
-      display: flex; gap: 14px; margin: 8px 0; flex-wrap: wrap; align-items: center;
+      display: flex; gap: 10px; margin: 8px 0; align-items: center; flex-wrap: wrap;
     }
     .time-radio {
       display: flex; align-items: center;
       background: #eed8b0;
-      padding: 7px 15px 7px 11px;
-      border-radius: 18px;
-      font-size: 1.02em; font-weight: 500;
-      letter-spacing: 1px;
-      cursor: pointer;
-      transition: background 0.15s, color 0.14s, font-weight 0.13s;
-      box-shadow: 0 1px 8px #eed8b080;
+      padding: 7px 16px 7px 12px; border-radius: 16px;
+      font-size: 1.01em; font-weight: 500;
+      cursor: pointer; transition: background 0.15s; margin-right:6px;
       border: 2px solid #dfbe87;
-      margin-right:6px;
+      letter-spacing:0.5px;
     }
     .time-radio.selected {
-      background: #d2c2b0;
+      background: #8c7660;
       color: #fff;
-      box-shadow: 0 1px 11px #c7a37088;
-      font-weight: bold; border-color: #b19e7d;
+      font-weight: bold; border-color: #7e6c53;
     }
     .checkboxes {
-      display: flex; gap:15px; margin: 7px 0 0 0; align-items: center; flex-wrap:wrap;
+      display: flex; gap:13px; margin: 7px 0 0 0; align-items: center; flex-wrap:wrap;
     }
-    textarea {
-      min-height:38px; max-height:102px;
-      font-size:1em; resize:vertical;
-      margin-top:5px;
-    }
+    textarea { min-height:32px; max-height:88px; font-size:1em; resize:vertical; margin-top:5px;}
     button, .act-btn {
-      font-size:1.1em; padding: 12px 24px; margin-top:13px;
-      border: none; border-radius: 15px;
+      font-size:1.02em; padding: 10px 18px; margin-top:13px;
+      border: none; border-radius: 14px;
       background: linear-gradient(90deg, #b7a16a 1%, #ffe7b0 90%);
-      color: #5a3e1d; font-weight: bold; cursor: pointer; transition: background 0.14s;
-      box-shadow: 0 1px 5px #efd2a588;
-      letter-spacing:0.7px;
+      color: #5a3e1d; font-weight: bold; cursor: pointer; transition: background 0.13s; box-shadow: 0 1px 4px #efd2a588; letter-spacing:0.6px;
     }
-    button:hover, .act-btn:hover { background: linear-gradient(90deg, #c4a773 5%, #cc6c3e 99%); color: #fff;}
-    @media (max-width: 800px) {
-      .container {padding:20px 2vw 16px 2vw;}
-      form {padding:14px 0 12px 0;font-size:1em;}
-      h1{font-size:1.27em;}
+    button:hover, .act-btn:hover { background: linear-gradient(90deg, #c4a773 5%, #e69527 99%); color: #fff;}
+    @media (max-width: 900px) {
+      .container {max-width:98vw; padding:17px 1vw 10px 1vw;}
+      form {font-size:1em;gap:12px 8px; padding:8px 1vw 6px 1vw;}
     }
-    @media (max-width: 450px) {
+    @media (max-width: 550px) {
       form{grid-template-columns:1fr;}
-      label{font-size:0.97em;}
+      label{font-size:0.92em;}
     }
-    h2{margin-top:24px; font-size:1.16em; color: #a67244; text-align:center;}
-    #listArea { width: 99vw; margin: 18px auto 0 auto; background: #fffcf3; border-radius: 19px; box-shadow: 0 2px 10px #e7d7aa77; padding: 24px 3vw 29px 3vw;}
-    .date-title { font-size:1em; margin: 27px 2px 7px 12px; font-weight: bold; color: #665028; text-shadow: 0 1px 2px #ffeec9, 0 0 2px #fff; border-bottom: 2px dashed #e9c49f; padding-bottom: 3px;}
-    .group-title { font-size:0.96em; font-weight:bold; margin: 17px 0 7px 15px; color: #c27c36;}
-    table { border-collapse: separate; border-spacing: 0; width: 99%; margin-bottom: 5px; box-shadow: 0 1px 6px #dcbc8f70; font-size:0.97em; }
+    h2{margin-top:18px; font-size:1em; color: #a67244; text-align:center;}
+    .scroll-table {overflow-x:auto; margin-top:6px;}
+    table { border-collapse: separate; border-spacing: 0; width: max(940px,98vw); min-width:700px; margin-bottom: 5px; box-shadow: 0 1px 6px #dcbc8f70; font-size:0.97em; }
     thead th { background: #ebd8b0; font-size:0.98em; letter-spacing:1px;}
     tbody tr { height: 34px;}
     td { font-size: 0.99em; padding: 7px 7px 6px 7px; text-align: center; background: #fffbe6;}
     td.table-no {
       background: #eddcb4; color: #594315; font-weight: bold; border-left: 4px solid #ecd490; border-right: 1.7px solid #dec792;
-      border-radius: 11px 0 0 11px; width: 55px; letter-spacing: 1.2px; font-size: 1em;
+      border-radius: 10px 0 0 10px; width: 55px; letter-spacing: 1.2px; font-size: 1em;
     }
-    td.cap-cell {
-      background: #f8f1d7; font-size: 0.97em; color: #ad7713; font-weight: bold;
-    }
-    td.empty {
-      background: #f8efe2; color: #aeaeae; border: 1.1px dashed #efe1ca; font-style: italic;
-    }
-    td.reserved {
-      background: #fcf4e5; color: #a65c06; font-weight: bold; border: 2.3px solid #deba7e; box-shadow: 0 1px 3px #fcb86938; letter-spacing:0.7px;
-    }
-    td.phone { font-size: 0.94em; color: #346578; font-weight: 600; letter-spacing: 0.4px;}
+    td.cap-cell { background: #f8f1d7; font-size: 0.97em; color: #ad7713; font-weight: bold; }
+    td.empty { background: #f8efe2; color: #aeaeae; border: 1.1px dashed #efe1ca; font-style: italic; }
+    td.reserved { background: #fcf4e5; color: #a65c06; font-weight: bold; border: 2.3px solid #deba7e; letter-spacing:0.7px; }
+    td.phone { font-size: 0.97em; color: #346578; font-weight: 600; }
     td.num, td.childnum { font-weight:600; }
-    td.note-cell { max-width:170px; font-size:0.99em; color:#a15e10;}
+    td.note-cell { max-width:180px; font-size:0.98em; color:#a15e10;}
     td.action-cell { background: transparent; border: none;}
-    .act-btn {
-      font-size:1em; border-radius:8px; border:none;
-      margin: 0 3px; padding:7px 16px;
-      background:#dbb481;
-      color:#60461c; font-weight:592; cursor:pointer;
-      transition: background 0.13s;
-    }
+    .act-btn { font-size:0.99em; border-radius:8px; border:none; margin: 0 3px; padding:8px 17px; background:#dbb481; color:#60461c; font-weight:592; cursor:pointer; transition: background 0.13s;}
     .act-btn:hover { background: #c66a00; color:#fff;}
-    .edit-form { background:#fffbe8; padding:10px 18px; border-radius:14px; box-shadow: 0 1px 7px #e4c99080; margin-bottom:18px;}
-    .edit-form label, .edit-form input, .edit-form select, .edit-form textarea { font-size:1.07em;}
+    .date-title { font-size:1.05em; margin: 24px 2px 7px 12px; font-weight: bold; color: #665028; border-bottom: 2px dashed #e9c49f; padding-bottom: 2px;}
+    .group-title { font-size:0.97em; font-weight:bold; margin: 17px 0 7px 14px; color: #ad7e3d;}
+    .edit-form { background:#fffbe8; padding:12px 18px; border-radius:14px; box-shadow: 0 1px 6px #efd3a477; margin-bottom:13px;}
+    .edit-form label, .edit-form input, .edit-form select, .edit-form textarea { font-size:0.99em;}
     .edit-form textarea { width:145px;}
-    .edit-form-checks { display:flex;gap:12px; margin-top:6px;}
+    .edit-form-checks { display:flex; gap:12px; margin-top:6px;}
   </style>
   <!-- Firebase setup -->
   <script src="https://www.gstatic.com/firebasejs/10.10.0/firebase-app-compat.js"></script>
@@ -160,8 +131,8 @@
 <body>
   <div class="container">
     <h1>清水の森</h1>
-    <div class="subtext">心地よいひとときを、森のカフェで。<br>ご予約は下記からお気軽にどうぞ。</div>
-    <form id="resForm" autocomplete="off">
+    <div class="subtext">心地よい森の空間で、ゆったりとお食事を。ご予約は下記からどうぞ🍃</div>
+    <form id="resForm">
       <label>
         日付:
         <input type="date" id="date" required>
@@ -176,26 +147,22 @@
       </label>
       <label style="grid-column: 1/-1;">
         テーブル番号（複数選択可）:
-        <div class="table-choice" id="tableChoice">
-          <!-- JSで生成 -->
-        </div>
+        <div class="table-choice" id="tableChoice"></div>
       </label>
       <label style="grid-column: 1/-1;">
         時間帯:
-        <div class="time-choices" id="timeChoices">
-          <!-- JSで生成 -->
-        </div>
+        <div class="time-choices" id="timeChoices"></div>
         <input type="hidden" id="time" required>
       </label>
       <label>
-        名前（カタカナ）:
-        <input type="text" id="name" pattern="^[ァ-ヴー]+$" required placeholder="例：カトウ">
+        名前（カタカナ・ひらがな）:
+        <input type="text" id="name" pattern="^[ァ-ヴーぁ-んー]+$" required placeholder="例：カトウ または かとう">
       </label>
       <label>
         電話番号:
         <input type="tel" id="tel" pattern="^[0-9]+$" required placeholder="例：09012345678">
       </label>
-      <label style="grid-column:1/-1;">
+      <label style="grid-column: 1/-1;">
         備考：
         <div class="checkboxes">
           <label><input type="checkbox" id="childPlate" value="お子様プレート">お子様プレート</label>
@@ -206,11 +173,11 @@
       <button type="submit">予約登録</button>
     </form>
     <h2>予約一覧</h2>
-    <section id="listArea"></section>
+    <div class="scroll-table"><section id="listArea"></section></div>
   </div>
 
 <script>
-  // Firebase conf（プロジェクト作成後自分の値に変更してください！）
+  // Firebase conf（自分のconfigに差し替え!）
   const firebaseConfig = {
     apiKey: "AIzaSyDtyhHZPp4HulSRVn1hJgf003EcrBJh6_u",
     authDomain: "cafe-demo.firebaseapp.com",
@@ -223,7 +190,7 @@
   const db = firebase.firestore();
   const RES_COLLECTION = "shimizu_cafe_reservations";
 
-  // 定数
+  // テーブル定義
   const TABLE_CAPACITY = {
     "T1": 4, "T2": 4, "T4": 2, "T5": 2, "T6": 2, "T7": 2, "T8": 2, "T9": 2, "T10": 2
   };
@@ -260,7 +227,7 @@
       tc.appendChild(span);
     });
   }
-  // 時間帯ラジオ風ボタン生成
+  // 時間帯ラジオ風ボタン生成（バグ修正済み!）
   function renderTimeChoices(selectedKey="") {
     const tc = document.getElementById("timeChoices");
     tc.innerHTML = "";
@@ -269,17 +236,20 @@
       span.className = "time-radio";
       if (t.key === selectedKey) span.classList.add("selected");
       span.innerHTML = `<input type="radio" name="reserveTime" value="${t.key}" style="display:none;">${t.label}`;
-      span.onclick = ()=>{
+      span.onclick = () => {
         document.getElementById("time").value = t.key;
-        renderTimeChoices(t.key);
+        renderTimeChoices(t.key); // ★ここで再レンダリング（複数ボタンが絶対反応するように）
       };
       tc.appendChild(span);
     });
-    document.getElementById("time").value = selectedKey;
+    // 初期値代入
+    if (selectedKey==="") {
+      document.getElementById("time").value = "";
+    }
   }
 
   // 日付選択で一覧も絞り込み
-  let selectedDateVal = ""; // 更新時用
+  let selectedDateVal = "";
   document.getElementById("date").addEventListener("change", function(e){
     selectedDateVal = e.target.value;
     renderList(selectedDateVal);
@@ -303,8 +273,9 @@
       alert("全ての項目を入力してください");
       return;
     }
-    if (!(/^[ァ-ヴー]+$/.test(name))) {
-      alert("名前はカタカナで入力してください");
+    // 名前はカタカナ・ひらがな許可
+    if (!(/^[ァ-ヴーぁ-んー]+$/.test(name))) {
+      alert("名前はカタカナかひらがなで入力してください");
       return;
     }
     if (!(/^[0-9]+$/.test(tel))) {
@@ -316,9 +287,7 @@
       return;
     }
     // 重複チェック: 同じ日付・時間帯・テーブル番号に既予約があるか
-    const snapshot = await db.collection(RES_COLLECTION)
-      .where("date", "==", date).where("time", "==", time)
-      .get();
+    const snapshot = await db.collection(RES_COLLECTION).where("date", "==", date).where("time", "==", time).get();
     const overlap = snapshot.docs.some(doc => {
       const r = doc.data();
       return r.tables.some(t=>tables.includes(t));
@@ -339,12 +308,11 @@
     renderList(selectedDateVal);
   };
 
-  // 一覧ライブ描画（Firestoreリアルタイム反映）
-  let unsubscribe = null; // リスナー解除用
+  // 一覧ライブ描画（Firestoreリアルタイム反映）幅問題対応
+  let unsubscribe = null;
   function renderList(selectedDate) {
     const area = document.getElementById("listArea");
     area.innerHTML = "<div style='color:#aaa;padding:14px;'>読込中...</div>";
-    // Firestore listener
     if (unsubscribe) unsubscribe();
     unsubscribe = db.collection(RES_COLLECTION)
       .orderBy("date").orderBy("time")
@@ -354,7 +322,6 @@
         drawTable(filtered, selectedDate);
       });
   }
-  // テーブル描画
   function drawTable(res, selectedDate) {
     const area = document.getElementById("listArea");
     area.innerHTML = "";
@@ -362,7 +329,7 @@
       area.innerHTML = "<div style='color:#aaa;padding:14px;'>予約はありません</div>";
       return;
     }
-    // グルーピング {date→time→table}
+    // グループ {date→time→table}
     const grouped = {};
     res.forEach((r, idx) => {
       r.tables.forEach(tableNo => {
@@ -371,24 +338,18 @@
         grouped[r.date][r.time][tableNo]={
           numAdult:r.numAdult, numChild:r.numChild, name:r.name, tel:r.tel,
           childPlate:r.childPlate, bdayPlate:r.bdayPlate, note:r.note,
-          _id:r._id, index:idx, tables:r.tables // FirestoreのIDも保存
+          _id:r._id, index:idx, tables:r.tables
         };
       });
     });
     const dates = Object.keys(grouped).sort().filter(date=>!selectedDate||date===selectedDate);
     dates.forEach(date => {
-      const dateTitle = document.createElement("div");
-      dateTitle.className = "date-title";
-      dateTitle.textContent = date;
-      area.appendChild(dateTitle);
+      const dateTitle = document.createElement("div"); dateTitle.className = "date-title"; dateTitle.textContent = date; area.appendChild(dateTitle);
 
       TIMES.forEach(({key: timeKey, label}) => {
-        const title = document.createElement("div");
-        title.className = "group-title";
-        title.textContent = "■"+label;
-        area.appendChild(title);
+        const title = document.createElement("div"); title.className = "group-title"; title.textContent = "■"+label; area.appendChild(title);
 
-        // 表
+        const tableWrap=document.createElement("div");tableWrap.className="scroll-table";
         const table = document.createElement("table");
         const thead = document.createElement("thead");
         thead.innerHTML =
@@ -400,70 +361,54 @@
 
         TABLES.forEach(tNo => {
           const tr = document.createElement("tr");
-          const tdNo = document.createElement("td"); tdNo.className="table-no";
-          tdNo.textContent = tNo; tr.appendChild(tdNo);
-          const tdCap = document.createElement("td"); tdCap.className="cap-cell";
-          tdCap.textContent=TABLE_CAPACITY[tNo]+"人"; tr.appendChild(tdCap);
+          const tdNo = document.createElement("td"); tdNo.className="table-no"; tdNo.textContent = tNo; tr.appendChild(tdNo);
+          const tdCap = document.createElement("td"); tdCap.className="cap-cell"; tdCap.textContent=TABLE_CAPACITY[tNo]+"人"; tr.appendChild(tdCap);
 
           if (grouped[date][timeKey] && grouped[date][timeKey][tNo]) {
             const info = grouped[date][timeKey][tNo];
-            const tdNumA=document.createElement("td");
-            tdNumA.className="num"; tdNumA.textContent=info.numAdult; tr.appendChild(tdNumA);
-            const tdNumC=document.createElement("td");
-            tdNumC.className="childnum"; tdNumC.textContent=info.numChild; tr.appendChild(tdNumC);
-            const tdName=document.createElement("td");
-            tdName.className="reserved"; tdName.textContent=info.name; tr.appendChild(tdName);
-            const tdTel=document.createElement("td");
-            tdTel.className="phone"; tdTel.textContent=info.tel; tr.appendChild(tdTel);
+            const tdNumA=document.createElement("td"); tdNumA.className="num"; tdNumA.textContent=info.numAdult; tr.appendChild(tdNumA);
+            const tdNumC=document.createElement("td"); tdNumC.className="childnum"; tdNumC.textContent=info.numChild; tr.appendChild(tdNumC);
+            const tdName=document.createElement("td"); tdName.className="reserved"; tdName.textContent=info.name; tr.appendChild(tdName);
+            const tdTel=document.createElement("td"); tdTel.className="phone"; tdTel.textContent=info.tel; tr.appendChild(tdTel);
             // 備考
-            const tdNote=document.createElement("td");
-            tdNote.className="note-cell";
-            let noteStr=[]; if(info.childPlate)noteStr.push("お子様プレート");
-            if(info.bdayPlate)noteStr.push("誕生日プレート");
-            if(info.note && info.note.trim()!=="")noteStr.push(info.note.trim());
+            const tdNote=document.createElement("td"); tdNote.className="note-cell";
+            let noteStr=[]; if(info.childPlate)noteStr.push("お子様プレート"); if(info.bdayPlate)noteStr.push("誕生日プレート"); if(info.note && info.note.trim()!=="")noteStr.push(info.note.trim());
             tdNote.textContent=noteStr.join("／"); tr.appendChild(tdNote);
 
             // 操作欄
             const tdAct=document.createElement("td"); tdAct.className="action-cell";
-            // 削除
             const removeBtn=document.createElement("button");
-            removeBtn.className="act-btn";
-            removeBtn.textContent="削除";
+            removeBtn.className="act-btn"; removeBtn.textContent="削除";
             removeBtn.onclick= async ()=>{
               if(confirm("本当に削除してもよいですか？")) {
                 await db.collection(RES_COLLECTION).doc(info._id).delete();
               }
             };
-            // 編集（変更項目限定）
             const editBtn=document.createElement("button");
-            editBtn.className="act-btn";
-            editBtn.textContent="変更";
-            editBtn.onclick=()=>{
-              showEditForm(info, date, timeKey, tNo, selectedDate);
-            };
+            editBtn.className="act-btn"; editBtn.textContent="変更";
+            editBtn.onclick=()=>{ showEditForm(info, date, timeKey, tNo, selectedDate); };
             tdAct.appendChild(removeBtn); tdAct.appendChild(editBtn);
             tr.appendChild(tdAct);
           } else {
             Array(6).fill(0).forEach(()=> {
-              const td = document.createElement("td"); td.className = "empty"; td.textContent = '';
-              tr.appendChild(td);
+              const td = document.createElement("td"); td.className = "empty"; td.textContent = ''; tr.appendChild(td);
             });
           }
           tbody.appendChild(tr);
         });
         table.appendChild(tbody);
-        area.appendChild(table);
+        tableWrap.appendChild(table);
+        area.appendChild(tableWrap);
       });
     });
   }
 
   // 編集フォーム（人数と備考のみ）
   function showEditForm(info,date,timeKey,tNo,selectedDate){
-    const area=document.getElementById("listArea");
-    area.innerHTML="";
+    const area=document.getElementById("listArea"); area.innerHTML="";
     const editDiv=document.createElement("div"); editDiv.className="edit-form";
     editDiv.innerHTML=`
-      <h3 style="margin:7px 0 13px 7px;font-size:1.12em;color:#a77f50">変更（${date} ${tNo} ${timeKey}）</h3>
+      <h3 style="margin:7px 0 13px 7px;font-size:1.02em;color:#a77f50">変更（${date} ${tNo} ${timeKey}）</h3>
       <label>大人人数：
         <input type="number" id="editNumA" value="${info.numAdult}" min="0" max="10" required>
       </label>
@@ -471,13 +416,11 @@
         <input type="number" id="editNumC" value="${info.numChild}" min="0" max="10" required>
       </label>
       <div class="edit-form-checks">
-        <label><input type="checkbox" id="editChildPlate" ${info.childPlate?"checked":""}>お子様プレート
-        </label>
-        <label><input type="checkbox" id="editBdayPlate" ${info.bdayPlate?"checked":""}>誕生日プレート
-        </label>
+        <label><input type="checkbox" id="editChildPlate" ${info.childPlate?"checked":""}>お子様プレート</label>
+        <label><input type="checkbox" id="editBdayPlate" ${info.bdayPlate?"checked":""}>誕生日プレート</label>
       </div>
       <label>その他（自由記入）:<textarea id="editNote">${info.note||""}</textarea></label>
-      <div style="margin-top:14px">
+      <div style="margin-top:10px">
         <button class="act-btn" id="saveEditBtn">保存</button>
         <button class="act-btn" id="cancelEditBtn">キャンセル</button>
       </div>
@@ -490,7 +433,6 @@
       const editBdayPlate=document.getElementById("editBdayPlate").checked;
       const editNote=document.getElementById("editNote").value.trim();
       if(editNumA===""||editNumC===""){alert("人数入力必須です");return;}
-      // Firestoreのみ該当情報アップデート（番号やテーブルは編集不可）
       await db.collection(RES_COLLECTION).doc(info._id).update({
         numAdult: editNumA,
         numChild: editNumC,
