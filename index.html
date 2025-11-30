@@ -4,19 +4,153 @@
   <meta charset="UTF-8">
   <title>カフェ予約管理</title>
   <style>
-    body { font-family: 'sans-serif'; }
-    h1 { color: #4a4a4a; }
-    section { margin: 28px 0 36px 0; }
-    form { margin: 24px 0 16px 0; }
-    label { margin-right: 12px; }
-    input, select { padding: 4px 8px; margin: 5px 0; }
-    .block { margin:20px 0 10px 0; }
-    .group-title { font-weight:bold; margin-top:8px; }
-    table { border-collapse: collapse; margin-bottom:10px; }
-    th, td { border: 1px solid #ccc; padding: 6px 14px; text-align: center;}
-    th { background-color: #f5f5f5; }
-    caption { font-weight:bold; margin-top: 10px; margin-bottom: 5px;}
-    .date-title { font-size:1.1em; margin:10px 0 4px 0; font-weight:bold;}
+    body {
+      font-family: 'Yu Gothic', 'Meiryo', 'sans-serif';
+      background: #f8f6f3;
+      color: #333;
+      margin: 0;
+      padding: 0 0 50px 0;
+      min-height: 100vh;
+    }
+    h1 {
+      font-size: 2.4em;
+      color: #94653b;
+      background: linear-gradient(to right, #ffecd2 40%, #fcb69f 100%);
+      margin: 0;
+      padding: 32px 0 18px 0;
+      text-align: center;
+      letter-spacing: 2px;
+      font-weight: 700;
+      box-shadow: 0 2px 8px #e5d8cd55;
+    }
+    form {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px 24px;
+      background: #fffde9;
+      border-radius: 18px;
+      padding: 18px 30px 15px 18px;
+      margin: 36px auto 22px auto;
+      width: min(540px, 96vw);
+      box-shadow: 0 2px 6px #f5e0b8b8;
+    }
+    label {
+      font-size: 1.08em;
+      margin-bottom: 2px;
+      flex: 1 0 44%;
+      min-width: 140px;
+    }
+    input, select {
+      font-size: 1.12em;
+      padding: 5px 7px;
+      margin-left: 5px;
+      border-radius: 7px;
+      border: 1px solid #d3c1bc;
+      background: #fff;
+      width: 60%;
+      box-sizing: border-box;
+    }
+    button {
+      font-size: 1.14em;
+      padding: 8px 22px;
+      margin-top: 18px;
+      border: none;
+      border-radius: 10px;
+      background: linear-gradient(90deg, #ffd9b3 2%, #ffb382 100%);
+      color: #744d29;
+      font-weight: bold;
+      cursor: pointer;
+      transition: background 0.15s;
+      box-shadow: 0 1px 3px #edd2a588;
+    }
+    button:hover {
+      background: linear-gradient(90deg, #ffd9b3 0%, #fd8a25 100%);
+    }
+    h2 {
+      margin-top: 36px;
+      font-size: 1.7em;
+      color: #b05c1e;
+      text-align: center;
+      letter-spacing:1px;
+      font-weight: 600;
+    }
+    #listArea {
+      width: min(700px, 98vw);
+      margin: 18px auto 0 auto;
+      background: #fffdfa;
+      border-radius: 16px;
+      box-shadow: 0 2px 12px #ecd4af66;
+      padding: 20px 16px 30px 16px;
+    }
+    .date-title {
+      font-size:1.23em;
+      margin: 30px 2px 14px 6px;
+      font-weight: bold;
+      color: #564400;
+      letter-spacing:1px;
+      text-shadow: 0 1px 2px #ffeec9, 0 0 2px #fff;
+      border-bottom: 2px dashed #e9c49f;
+      padding-bottom: 3px;
+    }
+    .group-title {
+      font-size:1.11em;
+      font-weight:bold;
+      margin: 17px 0 7px 10px;
+      color: #b85d21;
+      letter-spacing:1px;
+    }
+    table {
+      border-collapse: separate;
+      border-spacing: 0;
+      width: 98%;
+      margin-bottom: 3px;
+      box-shadow: 0 1px 8px #f5e0b888;
+    }
+    tbody tr {
+      height: 38px;
+    }
+    td {
+      font-size: 1.12em;
+      padding: 8px 10px 5px 10px;
+      text-align: center;
+      background: #fffbe6;
+      transition: background 0.16s;
+    }
+    td.table-no {
+      background: #f8e8cc;
+      color: #6b4700;
+      font-weight: bold;
+      border-left: 4px solid #e6cb98;
+      border-right: 1.7px solid #edcd90;
+      border-radius: 11px 0 0 11px;
+      width: 55px;
+      letter-spacing:2px;
+    }
+    td.empty {
+      background: #f8efe2;
+      color: #aeaeae;
+      border: 1.1px dashed #efe1ca;
+      font-style: italic;
+    }
+    td.reserved {
+      background: #fff0da;
+      color: #a65c06;
+      font-weight: bold;
+      border: 2.9px solid #fcb869;
+      box-shadow: 0 1px 3px #fcb86955;
+      letter-spacing:2px;
+    }
+    td.phone {
+      font-size: 0.94em;
+      color: #346578;
+      font-weight: 600;
+      letter-spacing: 1px;
+    }
+    @media (max-width: 700px) {
+      form, #listArea { width: 97vw; padding: 12px 4vw;}
+      table {font-size: 0.95em;}
+      .date-title, .group-title {font-size:1em;}
+    }
   </style>
 </head>
 <body>
@@ -72,19 +206,18 @@
     localStorage.setItem("reservations_v2", JSON.stringify(list));
   }
 
-  // 画面生成
+  // 表描画
   function renderList() {
     const area = document.getElementById("listArea");
     area.innerHTML = "";
 
     const res = getReservations();
     if (res.length === 0) {
-      area.innerHTML = "<div>予約はありません</div>";
+      area.innerHTML = "<div style='color:#aaa;padding:14px;'>予約はありません</div>";
       return;
     }
 
-    // 日付ごと、時間帯ごと、テーブル番号ごとにまとめる
-    // 構造例: grouped[date][time][tableNo]
+    // grouped[date][time][tableNo]
     const grouped = {};
     res.forEach(r => {
       if (!grouped[r.date]) grouped[r.date] = {};
@@ -92,36 +225,58 @@
       grouped[r.date][r.time][r.tableNo] = { name: r.name, tel: r.tel };
     });
 
-    // 日付昇順
+    // 昇順
     const dates = Object.keys(grouped).sort();
 
     dates.forEach(date => {
-      // 日付のタイトル
+      // 日付タイトル
       const dateTitle = document.createElement("div");
       dateTitle.className = "date-title";
       dateTitle.textContent = date;
       area.appendChild(dateTitle);
 
-      // 時間帯ごと
+      // 時間帯グループ
       [["11:00", "■ランチ① 11時～"], ["13:00", "■ランチ② 13時～"]].forEach(([timeKey, label]) => {
         const title = document.createElement("div");
         title.className = "group-title";
         title.textContent = label;
         area.appendChild(title);
 
-        // テーブルリスト
         const table = document.createElement("table");
         const tbody = document.createElement("tbody");
 
         for (let i = 1; i <= 9; i++) {
           const tNo = "T" + i;
           const tr = document.createElement("tr");
-          // 予約があれば表示
+          // テーブル番号セル
+          const tdNo = document.createElement("td");
+          tdNo.className = "table-no";
+          tdNo.textContent = tNo;
+          tr.appendChild(tdNo);
+
           if (grouped[date][timeKey] && grouped[date][timeKey][tNo]) {
             const info = grouped[date][timeKey][tNo];
-            tr.innerHTML = `<td>${tNo}</td><td>${info.name}</td><td>${info.tel}</td>`;
+            // 予約済みセル
+            const tdName = document.createElement("td");
+            tdName.className = "reserved";
+            tdName.textContent = info.name;
+            tr.appendChild(tdName);
+
+            const tdTel = document.createElement("td");
+            tdTel.className = "phone";
+            tdTel.textContent = info.tel;
+            tr.appendChild(tdTel);
           } else {
-            tr.innerHTML = `<td>${tNo}</td><td></td><td></td>`;
+            // 空きセル
+            const tdName = document.createElement("td");
+            tdName.className = "empty";
+            tdName.textContent = '';
+            tr.appendChild(tdName);
+
+            const tdTel = document.createElement("td");
+            tdTel.className = "empty";
+            tdTel.textContent = '';
+            tr.appendChild(tdTel);
           }
           tbody.appendChild(tr);
         }
@@ -131,6 +286,7 @@
     });
   }
 
+  // 登録
   document.getElementById("resForm").onsubmit = function(e) {
     e.preventDefault();
     const date = document.getElementById("date").value;
@@ -139,7 +295,6 @@
     const name = document.getElementById("name").value.trim();
     const tel = document.getElementById("tel").value.trim();
 
-    // バリデーション
     if (!(/^[ァ-ヴー]+$/.test(name))) {
       alert("名前はカタカナで入力してください");
       return;
@@ -149,7 +304,7 @@
       return;
     }
 
-    // 既予約チェック (同じ日付・時間帯・テーブル番号に既予約あり)
+    // 重複チェック
     const reservations = getReservations();
     const already = reservations.find(r =>
       r.date === date && r.time === time && r.tableNo === tableNo
@@ -159,7 +314,6 @@
       return;
     }
 
-    // 保存
     reservations.push({ date, time, tableNo, name, tel });
     saveReservations(reservations);
     renderList();
