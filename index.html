@@ -19,11 +19,14 @@
       display: flex; flex-wrap: wrap; gap: 14px 24px;
       background: #fffde9; border-radius: 18px;
       padding: 18px 30px 15px 18px; margin: 36px auto 22px auto;
-      width: min(620px, 98vw); box-shadow: 0 2px 6px #f5e0b8b8;
+      width: min(690px, 98vw); box-shadow: 0 2px 6px #f5e0b8b8;
     }
     label { font-size: 1.08em; margin-bottom: 2px; flex: 1 1 44%; min-width: 140px;}
     input, select { font-size: 1.12em; padding: 5px 7px; margin-left: 5px; border-radius: 7px; border: 1px solid #d3c1bc; background: #fff;}
-    .table-choice {display: flex; flex-wrap: wrap; gap: 5px 10px; margin-bottom: 2px;}
+    .table-choice {
+      display: flex; flex-wrap: wrap; gap: 5px 10px; margin-bottom: 2px;
+      align-items: center;
+    }
     .table-checkbox {margin-right: 1px; vertical-align: middle;}
     .table-label {margin-right: 13px; font-size: 1.07em;}
     .cap-text {
@@ -35,6 +38,25 @@
       margin-left: 5px;
       letter-spacing: 1px;
     }
+    .time-choices {
+      display: flex; gap: 16px;
+      margin-top: 7px; margin-bottom: 7px;
+    }
+    .time-radio {
+      display: flex; align-items: center; gap: 6px;
+      background: #ffe6c5;
+      padding: 3px 15px 3px 8px;
+      border-radius: 18px;
+      font-size: 1.1em;
+      cursor: pointer;
+      transition: background 0.18s;
+    }
+    .time-radio.selected {
+      background: #ffab58;
+      color: #fff;
+      box-shadow: 0 1px 7px #ffab58b0;
+      font-weight: bold;
+    }
     button {
       font-size: 1.14em; padding: 8px 22px; margin-top: 18px;
       border: none; border-radius: 10px;
@@ -43,17 +65,17 @@
       box-shadow: 0 1px 3px #edd2a588;
     }
     button:hover { background: linear-gradient(90deg, #ffd9b3 0%, #fd8a25 100%);}
-    h2{margin-top:36px; font-size:1.7em; color: #b05c1e; text-align:center; }
-    #listArea { width: min(900px, 98vw); margin: 18px auto 0 auto; background: #fffdfa; border-radius: 16px; box-shadow: 0 2px 12px #ecd4af66; padding: 18px 12px 28px 12px;}
-    .date-title { font-size:1.1em; margin: 30px 2px 8px 6px; font-weight: bold; color: #564400; text-shadow: 0 1px 2px #ffeec9, 0 0 2px #fff; border-bottom: 2px dashed #e9c49f; padding-bottom: 3px;}
-    .group-title { font-size:1.06em; font-weight:bold; margin: 17px 0 7px 10px; color: #b85d21;}
-    table { border-collapse: separate; border-spacing: 0; width: 99%; margin-bottom: 3px; box-shadow: 0 1px 8px #f5e0b888;}
-    thead th { background: #ffe9c1; font-size:1em; letter-spacing:1px;}
+    h2{margin-top:36px; font-size:1.53em; color: #b05c1e; text-align:center; }
+    #listArea { width: min(950px, 98vw); margin: 18px auto 0 auto; background: #fffdfa; border-radius: 16px; box-shadow: 0 2px 12px #ecd4af66; padding: 18px 12px 28px 12px;}
+    .date-title { font-size:1.09em; margin: 30px 2px 12px 9px; font-weight: bold; color: #564400; text-shadow: 0 1px 2px #ffeec9, 0 0 2px #fff; border-bottom: 2px dashed #e9c49f; padding-bottom: 3px;}
+    .group-title { font-size:1.03em; font-weight:bold; margin: 17px 0 7px 18px; color: #b85d21;}
+    table { border-collapse: separate; border-spacing: 0; width: 99%; margin-bottom: 4px; box-shadow: 0 1px 8px #f5e0b888;}
+    thead th { background: #ffe9c1; font-size:0.97em; letter-spacing:1px;}
     tbody tr { height: 36px;}
-    td { font-size: 1.05em; padding: 8px 10px 5px 10px; text-align: center; background: #fffbe6;}
+    td { font-size: 1.01em; padding: 8px 8px 5px 8px; text-align: center; background: #fffbe6;}
     td.table-no {
       background: #f8e8cc; color: #6b4700; font-weight: bold; border-left: 4px solid #e6cb98; border-right: 1.7px solid #edcd90;
-      border-radius: 11px 0 0 11px; width: 65px; letter-spacing: 2px; font-size: 1.04em;
+      border-radius: 11px 0 0 11px; width: 55px; letter-spacing: 1.5px; font-size: 1.02em;
     }
     td.cap-cell {
       background: #fdf0d7; font-size: 0.95em; color: #ad7713; font-weight: bold;
@@ -62,14 +84,27 @@
       background: #f8efe2; color: #aeaeae; border: 1.1px dashed #efe1ca; font-style: italic;
     }
     td.reserved {
-      background: #fff0da; color: #a65c06; font-weight: bold; border: 2.5px solid #fcb869; box-shadow: 0 1px 3px #fcb86955; letter-spacing:1px;
+      background: #fff0da; color: #a65c06; font-weight: bold; border: 2.5px solid #fcb869; box-shadow: 0 1px 3px #fcb86955; letter-spacing: 1px;
     }
-    td.phone { font-size: 0.97em; color: #346578; font-weight: 600; letter-spacing: 0.5px;}
-    td.num { font-size:1.07em; font-weight:600; color:#6845ad;}
-    @media (max-width: 1000px) {
+    td.phone { font-size: 0.93em; color: #346578; font-weight: 600; letter-spacing: 0.5px;}
+    td.num { font-size:1.04em; font-weight:600; color:#6845ad;}
+    td.action-cell { background: transparent; border: none;}
+    .act-btn {
+      font-size:0.95em; border-radius:8px; border:none;
+      margin: 0 3px; padding:1.5px 14px;
+      background:#ffccad;
+      color:#7c4a01; font-weight:550; cursor:pointer;
+      transition: background 0.17s;
+    }
+    .act-btn:hover { background: #ff6f00; color:#fff;}
+    .edit-form { background:#fffbe8; padding:8px 13px; border-radius:7px; box-shadow: 0 1px 7px #f5e0b878;}
+    .edit-form label, .edit-form input, .edit-form select { font-size:0.98em;}
+    .edit-form input[type="number"] { width:50px;}
+    .edit-form input[type="text"], .edit-form input[type="tel"] { width:110px;}
+    @media (max-width: 1050px) {
       form, #listArea { width: 99vw; padding: 12px 1vw;}
-      table {font-size: 0.97em;}
-      .group-title, .date-title{ font-size:0.99em;}
+      table {font-size: 0.93em;}
+      .group-title, .date-title{ font-size:0.89em;}
     }
   </style>
 </head>
@@ -81,62 +116,21 @@
     <input type="date" id="date" required>
   </label>
   <label>
-    時間帯:
-    <select id="time" required>
-      <option value="">選択してください</option>
-      <option value="11:00">11時～</option>
-      <option value="13:00">13時～</option>
-      <option value="dinner">ディナー</option>
-    </select>
-  </label>
-  <label>
     人数:
     <input type="number" id="num" required min="1" max="10" style="width:60px;">
   </label>
   <label style="flex-basis:100%;">
     テーブル番号（複数選択可）:
-    <div class="table-choice">
-      <span class="table-label">
-        <input type="checkbox" class="table-checkbox" name="tableNo" value="T1" id="tb-T1">
-        <label for="tb-T1">T1 <span class="cap-text">4人</span></label>
-      </span>
-      <span class="table-label">
-        <input type="checkbox" class="table-checkbox" name="tableNo" value="T2" id="tb-T2">
-        <label for="tb-T2">T2 <span class="cap-text">4人</span></label>
-      </span>
-      <span class="table-label">
-        <input type="checkbox" class="table-checkbox" name="tableNo" value="T3" id="tb-T3">
-        <label for="tb-T3">T3 <span class="cap-text">4人</span></label>
-      </span>
-      <span class="table-label">
-        <input type="checkbox" class="table-checkbox" name="tableNo" value="T4" id="tb-T4">
-        <label for="tb-T4">T4 <span class="cap-text">2人</span></label>
-      </span>
-      <span class="table-label">
-        <input type="checkbox" class="table-checkbox" name="tableNo" value="T5" id="tb-T5">
-        <label for="tb-T5">T5 <span class="cap-text">2人</span></label>
-      </span>
-      <span class="table-label">
-        <input type="checkbox" class="table-checkbox" name="tableNo" value="T6" id="tb-T6">
-        <label for="tb-T6">T6 <span class="cap-text">2人</span></label>
-      </span>
-      <span class="table-label">
-        <input type="checkbox" class="table-checkbox" name="tableNo" value="T7" id="tb-T7">
-        <label for="tb-T7">T7 <span class="cap-text">2人</span></label>
-      </span>
-      <span class="table-label">
-        <input type="checkbox" class="table-checkbox" name="tableNo" value="T8" id="tb-T8">
-        <label for="tb-T8">T8 <span class="cap-text">2人</span></label>
-      </span>
-      <span class="table-label">
-        <input type="checkbox" class="table-checkbox" name="tableNo" value="T9" id="tb-T9">
-        <label for="tb-T9">T9 <span class="cap-text">2人</span></label>
-      </span>
-      <span class="table-label">
-        <input type="checkbox" class="table-checkbox" name="tableNo" value="T10" id="tb-T10">
-        <label for="tb-T10">T10 <span class="cap-text">2人</span></label>
-      </span>
+    <div class="table-choice" id="tableChoice">
+      <!-- JSで生成 -->
     </div>
+  </label>
+  <label style="flex-basis:98%;">
+    時間帯:
+    <div class="time-choices" id="timeChoices">
+      <!-- JSで生成 -->
+    </div>
+    <input type="hidden" id="time" required>
   </label>
   <label>
     名前（カタカナ）:
@@ -144,7 +138,7 @@
   </label>
   <label>
     電話番号:
-    <input type="tel" id="tel" pattern="^[0-9\-]+$" required placeholder="例：090-1234-5678">
+    <input type="tel" id="tel" pattern="^[0-9]+$" required placeholder="例：09012345678">
   </label>
   <button type="submit">予約登録</button>
 </form>
@@ -155,52 +149,107 @@
 <script>
   // テーブルキャパ定義
   const TABLE_CAPACITY = {
-    "T1": 4, "T2": 4, "T3": 4,
+    "T1": 4, "T2": 4,
     "T4": 2, "T5": 2, "T6": 2, "T7": 2, "T8": 2, "T9": 2, "T10": 2
   };
   const TABLES = Object.keys(TABLE_CAPACITY);
 
+  const TIMES = [
+    { key: "11:00", label: "11時～"},
+    { key: "13:00", label: "13時～"},
+    { key: "dinner", label: "ディナー" }
+  ];
+
   function getReservations() {
-    return JSON.parse(localStorage.getItem("reservations_v3") || "[]");
+    return JSON.parse(localStorage.getItem("reservations_v4") || "[]");
   }
   function saveReservations(list) {
-    localStorage.setItem("reservations_v3", JSON.stringify(list));
+    localStorage.setItem("reservations_v4", JSON.stringify(list));
   }
 
-  function renderList() {
+  // テーブル複数選択欄生成
+  function renderTableChoices(selected=[]) {
+    const tc = document.getElementById("tableChoice");
+    tc.innerHTML = "";
+    TABLES.forEach(tNo => {
+      const span = document.createElement("span");
+      span.className = "table-label";
+      const cb = document.createElement("input");
+      cb.type = "checkbox";
+      cb.className = "table-checkbox";
+      cb.name = "tableNo";
+      cb.value = tNo;
+      cb.id = "tb-"+tNo;
+      if (selected.includes(tNo)) cb.checked = true;
+      const label = document.createElement("label");
+      label.htmlFor = "tb-"+tNo;
+      label.textContent = tNo;
+      const cap = document.createElement("span");
+      cap.className = "cap-text";
+      cap.textContent = TABLE_CAPACITY[tNo]+"人";
+      label.appendChild(cap);
+      span.appendChild(cb);
+      span.appendChild(label);
+      tc.appendChild(span);
+    });
+  }
+  // 時間帯ボタンダウン化
+  function renderTimeChoices(selectedKey="") {
+    const tc = document.getElementById("timeChoices");
+    tc.innerHTML = "";
+    TIMES.forEach(t=>{
+      const span = document.createElement("span");
+      span.className = "time-radio";
+      if (t.key === selectedKey) span.classList.add("selected");
+      span.innerHTML = `<input type="radio" name="reserveTime" value="${t.key}" style="display:none;">${t.label}`;
+      span.onclick = ()=>{
+        // 単一選択
+        document.getElementById("time").value = t.key;
+        renderTimeChoices(t.key);
+      };
+      tc.appendChild(span);
+    });
+    document.getElementById("time").value = selectedKey;
+  }
+
+  // 予約表画面描画
+  function renderList(selectedDate) {
     const area = document.getElementById("listArea");
     area.innerHTML = "";
 
-    const res = getReservations();
+    const res = getReservations().filter(r=>!selectedDate||r.date===selectedDate);
     if (res.length === 0) {
       area.innerHTML = "<div style='color:#aaa;padding:14px;'>予約はありません</div>";
       return;
     }
     // grouped[date][time][tableNo]
     const grouped = {};
-    res.forEach(r => {
+    res.forEach((r, idx) => {
       r.tables.forEach(tableNo => {
         if (!grouped[r.date]) grouped[r.date] = {};
         if (!grouped[r.date][r.time]) grouped[r.date][r.time] = {};
         grouped[r.date][r.time][tableNo] = {
           name: r.name,
           tel: r.tel,
-          num: r.num
+          num: r.num,
+          idx, //予約配列上のindex保存
+          tables: r.tables
         };
       });
     });
-    const dates = Object.keys(grouped).sort();
 
+    // 日付昇順
+    const dates = Object.keys(grouped).sort().filter(date=>!selectedDate||date===selectedDate);
     dates.forEach(date => {
       const dateTitle = document.createElement("div");
       dateTitle.className = "date-title";
       dateTitle.textContent = date;
       area.appendChild(dateTitle);
 
-      [["11:00", "■ランチ① 11時～"], ["13:00", "■ランチ② 13時～"], ["dinner", "■ディナー"]].forEach(([timeKey, label]) => {
+      TIMES.forEach(({key: timeKey, label}) => {
         const title = document.createElement("div");
         title.className = "group-title";
-        title.textContent = label;
+        title.textContent = "■"+label;
         area.appendChild(title);
 
         // 表
@@ -213,6 +262,7 @@
             "<th>人数</th>" +
             "<th>名前</th>" +
             "<th>電話番号</th>" +
+            "<th>操作</th>" +
           "</tr>";
         table.appendChild(thead);
         const tbody = document.createElement("tbody");
@@ -243,8 +293,39 @@
             tdTel.className = "phone";
             tdTel.textContent = info.tel;
             tr.appendChild(tdTel);
+
+            // 操作欄
+            const tdAct = document.createElement("td");
+            tdAct.className = "action-cell";
+            const removeBtn = document.createElement("button");
+            removeBtn.className = "act-btn";
+            removeBtn.textContent = "削除";
+            removeBtn.onclick = ()=>{
+              // 予約データから該当テーブル削除
+              const all = getReservations();
+              const recIdx = info.idx;
+              // 1件予約に複数テーブルが含まれている場合は該当tableだけ消す、1個だけならその予約自体消す
+              if (all[recIdx].tables.length === 1) {
+                all.splice(recIdx, 1);
+              } else {
+                all[recIdx].tables = all[recIdx].tables.filter(x=>x!==tNo);
+              }
+              saveReservations(all);
+              renderList(selectedDate);
+            };
+            // 編集ボタン
+            const editBtn = document.createElement("button");
+            editBtn.className = "act-btn";
+            editBtn.textContent = "変更";
+            editBtn.onclick = ()=>{
+              // 編集フォームに差替え
+              showEditForm(info, date, timeKey, tNo, selectedDate);
+            };
+            tdAct.appendChild(removeBtn);
+            tdAct.appendChild(editBtn);
+            tr.appendChild(tdAct);
           } else {
-            Array(3).fill(0).forEach((_, idx) => {
+            Array(4).fill(0).forEach(()=> {
               const td = document.createElement("td");
               td.className = "empty";
               td.textContent = '';
@@ -259,6 +340,48 @@
     });
   }
 
+  // 編集フォーム表示
+  function showEditForm(info, date, timeKey, tNo, selectedDate){
+    const area = document.getElementById("listArea");
+    area.innerHTML = ""; // 一覧消して編集フォーム
+    const editDiv = document.createElement("div");
+    editDiv.className = "edit-form";
+    editDiv.innerHTML = `
+      <h3 style="margin:5px 0 13px 7px;">予約内容の変更（${date} ${tNo} ${timeKey}）</h3>
+      <label>人数：
+        <input type="number" id="editNum" value="${info.num}" min="1" max="10" required>
+      </label>
+      <label>名前（カタカナ）：
+        <input type="text" id="editName" value="${info.name}" pattern="^[ァ-ヴー]+$" required>
+      </label>
+      <label>電話番号：
+        <input type="tel" id="editTel" value="${info.tel}" pattern="^[0-9]+$" required>
+      </label>
+      <br />
+      <button class="act-btn" id="saveEditBtn">変更を保存</button>
+      <button class="act-btn" id="cancelEditBtn">キャンセル</button>
+    `;
+    area.appendChild(editDiv);
+    document.getElementById("saveEditBtn").onclick = ()=>{
+      const editNum = document.getElementById("editNum").value.trim();
+      const editName = document.getElementById("editName").value.trim();
+      const editTel = document.getElementById("editTel").value.trim();
+      if (!(editNum && editName && editTel)) { alert("全て入力してください"); return;}
+      if (!(/^[ァ-ヴー]+$/.test(editName))) { alert("名前はカタカナで入力"); return; }
+      if (!(/^[0-9]+$/.test(editTel))) { alert("電話番号は数字のみ"); return;}
+      // 編集保存
+      const all = getReservations();
+      const recIdx = info.idx;
+      all[recIdx].num = editNum;
+      all[recIdx].name = editName;
+      all[recIdx].tel = editTel;
+      saveReservations(all);
+      renderList(selectedDate);
+    };
+    document.getElementById("cancelEditBtn").onclick = ()=> renderList(selectedDate);
+  }
+
+  // 登録
   document.getElementById("resForm").onsubmit = function(e) {
     e.preventDefault();
     const date = document.getElementById("date").value;
@@ -279,11 +402,15 @@
       alert("名前はカタカナで入力してください");
       return;
     }
+    if (!(/^[0-9]+$/.test(tel))) {
+      alert("電話番号は数字のみで入力してください");
+      return;
+    }
     if (tables.length === 0) {
       alert("テーブル番号を選択してください");
       return;
     }
-    // 既予約チェック（同じ日・時間・テーブルに重複あるか）
+    // 重複チェック
     const reservations = getReservations();
     for (const t of tables) {
       const already = reservations.find(r =>
@@ -296,13 +423,24 @@
     }
     reservations.push({ date, time, num, tables, name, tel });
     saveReservations(reservations);
-    renderList();
+    renderList(date); // =>選択日で絞り
     document.getElementById("resForm").reset();
-    // チェックボックスもリセット
-    document.querySelectorAll("input[name=tableNo]").forEach(cb => cb.checked = false);
+    document.getElementById("time").value = "";
+    renderTableChoices();
+    renderTimeChoices();
   };
 
+  // 日付選択時、予約一覧も絞り込み
+  document.getElementById("date").addEventListener("change", function(e){
+    const selDate = e.target.value;
+    renderList(selDate);
+  });
+
+  // 初期描画
+  renderTableChoices();
+  renderTimeChoices();
   renderList();
+
 </script>
 </body>
 </html>
