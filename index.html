@@ -6,100 +6,167 @@
   <style>
     body { font-family: 'sans-serif'; }
     h1 { color: #4a4a4a; }
-    form, table { margin: 20px 0; }
-    input, select { padding: 4px 8px; margin: 5px; }
-    table { border-collapse: collapse; width: 100%; }
-    th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
+    section { margin: 28px 0 36px 0; }
+    form { margin: 24px 0 16px 0; }
+    label { margin-right: 12px; }
+    input, select { padding: 4px 8px; margin: 5px 0; }
+    .block { margin:20px 0 10px 0; }
+    .group-title { font-weight:bold; margin-top:8px; }
+    table { border-collapse: collapse; margin-bottom:10px; }
+    th, td { border: 1px solid #ccc; padding: 6px 14px; text-align: center;}
     th { background-color: #f5f5f5; }
+    caption { font-weight:bold; margin-top: 10px; margin-bottom: 5px;}
+    .date-title { font-size:1.1em; margin:10px 0 4px 0; font-weight:bold;}
   </style>
 </head>
 <body>
-  <h1>カフェ予約登録</h1>
-  <form id="resForm">
-    <label>
-      日付:
-      <input type="date" id="date" required>
-    </label>
-    <label>
-      時間帯:
-      <select id="time" required>
-        <option value="">選択してください</option>
-        <option value="11:00">11:00～</option>
-        <option value="13:00">13:00～</option>
-      </select>
-    </label>
-    <label>
-      名前（カタカナ）:
-      <input type="text" id="name" pattern="^[ァ-ヴー]+$" required placeholder="例：カトウ">
-    </label>
-    <label>
-      電話番号:
-      <input type="tel" id="tel" pattern="^[0-9\-]+$" required placeholder="例：090-1234-5678">
-    </label>
-    <button type="submit">予約登録</button>
-  </form>
+<h1>カフェ予約登録</h1>
+<form id="resForm">
+  <label>
+    日付:
+    <input type="date" id="date" required>
+  </label>
+  <label>
+    時間帯:
+    <select id="time" required>
+      <option value="">選択してください</option>
+      <option value="11:00">11:00～</option>
+      <option value="13:00">13:00～</option>
+    </select>
+  </label>
+  <label>
+    テーブル番号:
+    <select id="tableNo" required>
+      <option value="">選択</option>
+      <option value="T1">T1</option>
+      <option value="T2">T2</option>
+      <option value="T3">T3</option>
+      <option value="T4">T4</option>
+      <option value="T5">T5</option>
+      <option value="T6">T6</option>
+      <option value="T7">T7</option>
+      <option value="T8">T8</option>
+      <option value="T9">T9</option>
+    </select>
+  </label>
+  <label>
+    名前（カタカナ）:
+    <input type="text" id="name" pattern="^[ァ-ヴー]+$" required placeholder="例：カトウ">
+  </label>
+  <label>
+    電話番号:
+    <input type="tel" id="tel" pattern="^[0-9\-]+$" required placeholder="例：090-1234-5678">
+  </label>
+  <button type="submit">予約登録</button>
+</form>
 
-  <h2>予約一覧</h2>
-  <table id="list">
-    <thead>
-      <tr>
-        <th>日付</th>
-        <th>時間帯</th>
-        <th>名前</th>
-        <th>電話番号</th>
-      </tr>
-    </thead>
-    <tbody>
-    </tbody>
-  </table>
+<h2>予約一覧</h2>
+<section id="listArea"></section>
 
-  <script>
-    // データ保存用（LocalStorage）
-    function getReservations() {
-      return JSON.parse(localStorage.getItem("reservations") || "[]");
+<script>
+  // データ保存
+  function getReservations() {
+    return JSON.parse(localStorage.getItem("reservations_v2") || "[]");
+  }
+  function saveReservations(list) {
+    localStorage.setItem("reservations_v2", JSON.stringify(list));
+  }
+
+  // 画面生成
+  function renderList() {
+    const area = document.getElementById("listArea");
+    area.innerHTML = "";
+
+    const res = getReservations();
+    if (res.length === 0) {
+      area.innerHTML = "<div>予約はありません</div>";
+      return;
     }
-    function saveReservations(res) {
-      localStorage.setItem("reservations", JSON.stringify(res));
-    }
 
-    function renderList() {
-      const resList = getReservations();
-      const tbody = document.querySelector("#list tbody");
-      tbody.innerHTML = ""; // 一度クリア
-      resList.forEach(r => {
-        const tr = document.createElement("tr");
-        tr.innerHTML = `<td>${r.date}</td>
-                        <td>${r.time}</td>
-                        <td>${r.name}</td>
-                        <td>${r.tel}</td>`;
-        tbody.appendChild(tr);
+    // 日付ごと、時間帯ごと、テーブル番号ごとにまとめる
+    // 構造例: grouped[date][time][tableNo]
+    const grouped = {};
+    res.forEach(r => {
+      if (!grouped[r.date]) grouped[r.date] = {};
+      if (!grouped[r.date][r.time]) grouped[r.date][r.time] = {};
+      grouped[r.date][r.time][r.tableNo] = { name: r.name, tel: r.tel };
+    });
+
+    // 日付昇順
+    const dates = Object.keys(grouped).sort();
+
+    dates.forEach(date => {
+      // 日付のタイトル
+      const dateTitle = document.createElement("div");
+      dateTitle.className = "date-title";
+      dateTitle.textContent = date;
+      area.appendChild(dateTitle);
+
+      // 時間帯ごと
+      [["11:00", "■ランチ① 11時～"], ["13:00", "■ランチ② 13時～"]].forEach(([timeKey, label]) => {
+        const title = document.createElement("div");
+        title.className = "group-title";
+        title.textContent = label;
+        area.appendChild(title);
+
+        // テーブルリスト
+        const table = document.createElement("table");
+        const tbody = document.createElement("tbody");
+
+        for (let i = 1; i <= 9; i++) {
+          const tNo = "T" + i;
+          const tr = document.createElement("tr");
+          // 予約があれば表示
+          if (grouped[date][timeKey] && grouped[date][timeKey][tNo]) {
+            const info = grouped[date][timeKey][tNo];
+            tr.innerHTML = `<td>${tNo}</td><td>${info.name}</td><td>${info.tel}</td>`;
+          } else {
+            tr.innerHTML = `<td>${tNo}</td><td></td><td></td>`;
+          }
+          tbody.appendChild(tr);
+        }
+        table.appendChild(tbody);
+        area.appendChild(table);
       });
+    });
+  }
+
+  document.getElementById("resForm").onsubmit = function(e) {
+    e.preventDefault();
+    const date = document.getElementById("date").value;
+    const time = document.getElementById("time").value;
+    const tableNo = document.getElementById("tableNo").value;
+    const name = document.getElementById("name").value.trim();
+    const tel = document.getElementById("tel").value.trim();
+
+    // バリデーション
+    if (!(/^[ァ-ヴー]+$/.test(name))) {
+      alert("名前はカタカナで入力してください");
+      return;
+    }
+    if (!tableNo) {
+      alert("テーブル番号を選択してください");
+      return;
     }
 
-    document.getElementById("resForm").onsubmit = function(e) {
-      e.preventDefault();
-      const date = document.getElementById("date").value;
-      const time = document.getElementById("time").value;
-      const name = document.getElementById("name").value.trim();
-      const tel = document.getElementById("tel").value.trim();
+    // 既予約チェック (同じ日付・時間帯・テーブル番号に既予約あり)
+    const reservations = getReservations();
+    const already = reservations.find(r =>
+      r.date === date && r.time === time && r.tableNo === tableNo
+    );
+    if (already) {
+      alert("このテーブルは既に予約されています");
+      return;
+    }
 
-      // 入力バリデーション
-      if (!(/^[ァ-ヴー]+$/.test(name))) {
-        alert("名前はカタカナで入力してください");
-        return;
-      }
-
-      const reservations = getReservations();
-      // 保存
-      reservations.push({ date, time, name, tel });
-      saveReservations(reservations);
-      renderList();
-      // フォームリセット
-      document.getElementById("resForm").reset();
-    };
-
-    // 初回表示
+    // 保存
+    reservations.push({ date, time, tableNo, name, tel });
+    saveReservations(reservations);
     renderList();
-  </script>
+    document.getElementById("resForm").reset();
+  };
+
+  renderList();
+</script>
 </body>
 </html>
