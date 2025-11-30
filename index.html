@@ -3,82 +3,128 @@
 <head>
   <meta charset="UTF-8">
   <title>カフェ予約管理</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
   <style>
+    :root {
+      --mainColor: #94653b;
+      --accentColor: #ffe9c1;
+      --btnColor: #ffab58;
+      --btnColor2: #ffd9b3;
+      --dangerColor: #ff6f00;
+      --fontBig: 1.28em;
+      --fontMed: 1.15em;
+      --borderRadius: 19px;
+    }
     body {
       font-family: 'Yu Gothic', 'Meiryo', 'sans-serif';
       background: #f8f6f3;
-      color: #333;
+      color: #222;
       margin: 0; padding: 0 0 50px 0; min-height: 100vh;
+      max-width:100vw; overflow-x:hidden;
     }
     h1 {
-      font-size: 2.2em; color: #94653b;
+      font-size: 2.13em; color: var(--mainColor);
       background: linear-gradient(to right, #ffecd2 40%, #fcb69f 100%);
       margin: 0; padding: 32px 0 18px 0; text-align: center; font-weight: 700; box-shadow: 0 2px 8px #e5d8cd55;
     }
-    form {
-      display: flex; flex-wrap: wrap; gap: 14px 24px;
-      background: #fffde9; border-radius: 18px;
-      padding: 18px 30px 15px 18px; margin: 36px auto 22px auto;
-      width: min(690px, 98vw); box-shadow: 0 2px 6px #f5e0b8b8;
+    .big-form {
+      display: flex; flex-wrap: wrap; gap: 16px 24px;
+      background: #fffde9; border-radius: var(--borderRadius);
+      padding: 20px 30px 13px 18px; margin: 36px auto 22px auto;
+      width: min(700px, 98vw); box-shadow: 0 2px 7px #f2e1b7b2;
+      font-size: var(--fontBig);
+      align-items: center;
+      justify-content: flex-start;
     }
-    label { font-size: 1.08em; margin-bottom: 2px; flex: 1 1 44%; min-width: 140px;}
-    input, select { font-size: 1.12em; padding: 5px 7px; margin-left: 5px; border-radius: 7px; border: 1px solid #d3c1bc; background: #fff;}
+    .big-form label {
+      font-size: var(--fontBig); letter-spacing:1px; font-weight:500;
+      flex-basis:46%; min-width:155px; margin-bottom:6px;
+      display: flex; flex-direction: column;
+    }
+    .big-form input, .big-form select, .big-form textarea {
+      font-size: var(--fontBig);
+      padding: 7px 10px;
+      border-radius: 11px;
+      border: 2.2px solid #d3bba3;
+      background: #fff;
+      margin-top:7px;
+      width: 100%;
+      box-sizing: border-box;
+    }
+    .big-form .detail-notebox label, .big-form .checkboxes label {
+      font-size: 1.1em; font-weight:450; margin: 0 0 8px 0;
+      flex-direction: row; align-items: center;
+      gap: 5px;
+    }
+    .big-form .checkboxes {
+      display: flex; gap:15px; margin: 7px 0 0 0; align-items: center;
+      flex-wrap: wrap;
+    }
+    .big-form textarea {
+      min-height:44px; max-height:100px;
+      font-size:1.12em;
+      resize:vertical;
+      margin-top:6px;
+    }
     .table-choice {
-      display: flex; flex-wrap: wrap; gap: 5px 10px; margin-bottom: 2px;
+      display: flex; flex-wrap: wrap; gap: 7px 13px; margin: 6px 0;
       align-items: center;
     }
-    .table-checkbox {margin-right: 1px; vertical-align: middle;}
-    .table-label {margin-right: 13px; font-size: 1.07em;}
+    .table-checkbox {margin-right: 2px; vertical-align: middle; transform: scale(1.22);}
+    .table-label {margin-right: 11px; font-size: 1.11em;}
     .cap-text {
       color: #815d0c;
-      font-size: 0.96em;
+      font-size: 0.99em;
       background: #ffd9b3;
-      padding: 1.8px 7px 0.7px 7px;
+      padding: 2px 7px 1px 7px;
       border-radius: 11px;
       margin-left: 5px;
       letter-spacing: 1px;
     }
     .time-choices {
-      display: flex; gap: 16px;
-      margin-top: 7px; margin-bottom: 7px;
+      display: flex; gap: 11px; margin-top: 7px; margin-bottom: 7px;
+      flex-wrap: wrap;
     }
     .time-radio {
-      display: flex; align-items: center; gap: 6px;
-      background: #ffe6c5;
-      padding: 3px 15px 3px 8px;
+      display: flex; align-items: center;
+      background: var(--accentColor);
+      padding: 7px 17px 7px 13px;
       border-radius: 18px;
-      font-size: 1.1em;
+      font-size: var(--fontMed);
+      font-weight:500;
+      letter-spacing: 1px;
       cursor: pointer;
-      transition: background 0.18s;
+      transition: background 0.15s, color 0.14s, font-weight 0.13s;
+      box-shadow: 0 0.5px 2px #fcbbc066;
     }
     .time-radio.selected {
-      background: #ffab58;
+      background: var(--btnColor);
       color: #fff;
-      box-shadow: 0 1px 7px #ffab58b0;
+      box-shadow: 0 1px 7px var(--btnColor);
       font-weight: bold;
     }
-    button {
-      font-size: 1.14em; padding: 8px 22px; margin-top: 18px;
-      border: none; border-radius: 10px;
-      background: linear-gradient(90deg, #ffd9b3 2%, #ffb382 100%);
+    button, .act-btn {
+      font-size: 1.15em; padding: 11px 33px; margin-top: 18px;
+      border: none; border-radius: 14px;
+      background: linear-gradient(90deg, var(--btnColor2) 3%, var(--btnColor) 100%);
       color: #744d29; font-weight: bold; cursor: pointer; transition: background 0.15s;
-      box-shadow: 0 1px 3px #edd2a588;
+      box-shadow: 0 1px 4px #efd2a588;
     }
-    button:hover { background: linear-gradient(90deg, #ffd9b3 0%, #fd8a25 100%);}
-    h2{margin-top:36px; font-size:1.53em; color: #b05c1e; text-align:center; }
-    #listArea { width: min(950px, 98vw); margin: 18px auto 0 auto; background: #fffdfa; border-radius: 16px; box-shadow: 0 2px 12px #ecd4af66; padding: 18px 12px 28px 12px;}
-    .date-title { font-size:1.09em; margin: 30px 2px 12px 9px; font-weight: bold; color: #564400; text-shadow: 0 1px 2px #ffeec9, 0 0 2px #fff; border-bottom: 2px dashed #e9c49f; padding-bottom: 3px;}
-    .group-title { font-size:1.03em; font-weight:bold; margin: 17px 0 7px 18px; color: #b85d21;}
-    table { border-collapse: separate; border-spacing: 0; width: 99%; margin-bottom: 4px; box-shadow: 0 1px 8px #f5e0b888;}
-    thead th { background: #ffe9c1; font-size:0.97em; letter-spacing:1px;}
-    tbody tr { height: 36px;}
-    td { font-size: 1.01em; padding: 8px 8px 5px 8px; text-align: center; background: #fffbe6;}
+    button:hover, .act-btn:hover { background: linear-gradient(90deg, var(--btnColor2) 1%, var(--dangerColor) 99%); color: #fff;}
+    h2{margin-top:36px; font-size:1.4em; color: #b05c1e; text-align:center; }
+    #listArea { width: min(990px, 99vw); margin: 18px auto 0 auto; background: #fffdfa; border-radius: var(--borderRadius); box-shadow: 0 2px 12px #ecd4af66; padding: 22px 8px 29px 8px;}
+    .date-title { font-size:1.07em; margin: 27px 2px 10px 10px; font-weight: bold; color: #564400; text-shadow: 0 1px 2px #ffeec9, 0 0 2px #fff; border-bottom: 2px dashed #e9c49f; padding-bottom: 3px;}
+    .group-title { font-size:0.98em; font-weight:bold; margin: 17px 0 7px 15px; color: #b85d21;}
+    table { border-collapse: separate; border-spacing: 0; width: 99%; margin-bottom: 4px; box-shadow: 0 1px 8px #f5e0b888; font-size:0.95em;}
+    thead th { background: var(--accentColor); font-size:0.98em; letter-spacing:1.1px;}
+    tbody tr { height: 34px;}
+    td { font-size: 0.99em; padding: 7px 7px 6px 7px; text-align: center; background: #fffbe6;}
     td.table-no {
       background: #f8e8cc; color: #6b4700; font-weight: bold; border-left: 4px solid #e6cb98; border-right: 1.7px solid #edcd90;
-      border-radius: 11px 0 0 11px; width: 55px; letter-spacing: 1.5px; font-size: 1.02em;
+      border-radius: 11px 0 0 11px; width: 56px; letter-spacing: 1.2px; font-size: 1em;
     }
     td.cap-cell {
-      background: #fdf0d7; font-size: 0.95em; color: #ad7713; font-weight: bold;
+      background: #fdf0d7; font-size: 0.97em; color: #ad7713; font-weight: bold;
     }
     td.empty {
       background: #f8efe2; color: #aeaeae; border: 1.1px dashed #efe1ca; font-style: italic;
@@ -86,40 +132,55 @@
     td.reserved {
       background: #fff0da; color: #a65c06; font-weight: bold; border: 2.5px solid #fcb869; box-shadow: 0 1px 3px #fcb86955; letter-spacing: 1px;
     }
-    td.phone { font-size: 0.93em; color: #346578; font-weight: 600; letter-spacing: 0.5px;}
-    td.num { font-size:1.04em; font-weight:600; color:#6845ad;}
+    td.phone { font-size: 0.94em; color: #346578; font-weight: 600; letter-spacing: 0.4px;}
+    td.num { font-size: 1.02em; font-weight:600; color:#6845ad;}
+    td.childnum { font-size: 1em; font-weight:600; color:#0061a6;}
+    td.note-cell { max-width:170px; font-size:0.99em; color:#a15e10;}
     td.action-cell { background: transparent; border: none;}
     .act-btn {
-      font-size:0.95em; border-radius:8px; border:none;
+      font-size:0.96em; border-radius:8px; border:none;
       margin: 0 3px; padding:1.5px 14px;
-      background:#ffccad;
+      background:var(--btnColor2);
       color:#7c4a01; font-weight:550; cursor:pointer;
-      transition: background 0.17s;
+      transition: background 0.14s;
     }
-    .act-btn:hover { background: #ff6f00; color:#fff;}
-    .edit-form { background:#fffbe8; padding:8px 13px; border-radius:7px; box-shadow: 0 1px 7px #f5e0b878;}
-    .edit-form label, .edit-form input, .edit-form select { font-size:0.98em;}
-    .edit-form input[type="number"] { width:50px;}
-    .edit-form input[type="text"], .edit-form input[type="tel"] { width:110px;}
-    @media (max-width: 1050px) {
-      form, #listArea { width: 99vw; padding: 12px 1vw;}
-      table {font-size: 0.93em;}
-      .group-title, .date-title{ font-size:0.89em;}
+    .act-btn:hover { background: var(--dangerColor); color:#fff;}
+    .edit-form { background:#fffbe8; padding:12px 14px; border-radius:12px; box-shadow: 0 1px 7px #f5e0b878;}
+    .edit-form label, .edit-form input, .edit-form select, .edit-form textarea { font-size:1.08em;}
+    .edit-form input[type="number"] { width:60px;}
+    .edit-form input[type="text"], .edit-form input[type="tel"] { width:120px;}
+    .edit-form textarea { width:160px;}
+    @media (max-width: 690px) {
+      .big-form{font-size:1.09em;padding:13px 2vw 10px 2vw;}
+      .big-form label{font-size:1.07em;}
+    }
+    @media (max-width: 500px) {
+      h1{font-size:1.22em; padding:18px 0 7px 0;}
+      .big-form{font-size:1em;padding:8px 0 3px 0;}
+      .big-form label, .big-form input, .big-form select, .big-form textarea{font-size:1em;}
+      .table-label, .cap-text{font-size:0.95em;}
+      #listArea{padding:7px 1vw 15px 1vw;}
+      table{font-size:0.88em;}
+      .act-btn, button{font-size:1em;padding:8px 18px;}
     }
   </style>
 </head>
 <body>
 <h1>カフェ予約登録</h1>
-<form id="resForm">
+<form class="big-form" id="resForm" autocomplete="off">
   <label>
     日付:
     <input type="date" id="date" required>
   </label>
   <label>
-    人数:
-    <input type="number" id="num" required min="1" max="10" style="width:60px;">
+    大人人数:
+    <input type="number" id="numAdult" required min="0" max="10" value="1">
   </label>
-  <label style="flex-basis:100%;">
+  <label>
+    子ども人数:
+    <input type="number" id="numChild" required min="0" max="10" value="0">
+  </label>
+  <label style="flex-basis:100%;margin-bottom:5px;">
     テーブル番号（複数選択可）:
     <div class="table-choice" id="tableChoice">
       <!-- JSで生成 -->
@@ -140,6 +201,19 @@
     電話番号:
     <input type="tel" id="tel" pattern="^[0-9]+$" required placeholder="例：09012345678">
   </label>
+  <div style="width:100%;margin-top:20px;">
+    <strong style="font-size:1.12em;color:#906029;">備考：</strong>
+    <div class="checkboxes">
+      <label><input type="checkbox" id="childPlate" value="お子様プレート">お子様プレート</label>
+      <label><input type="checkbox" id="bdayPlate" value="誕生日プレート">誕生日プレート</label>
+    </div>
+    <div class="detail-notebox">
+      <label>
+        その他（自由記入）:
+        <textarea id="note" placeholder="ご要望など自由記入"></textarea>
+      </label>
+    </div>
+  </div>
   <button type="submit">予約登録</button>
 </form>
 
@@ -161,10 +235,10 @@
   ];
 
   function getReservations() {
-    return JSON.parse(localStorage.getItem("reservations_v4") || "[]");
+    return JSON.parse(localStorage.getItem("reservations_v5") || "[]");
   }
   function saveReservations(list) {
-    localStorage.setItem("reservations_v4", JSON.stringify(list));
+    localStorage.setItem("reservations_v5", JSON.stringify(list));
   }
 
   // テーブル複数選択欄生成
@@ -231,14 +305,16 @@
         grouped[r.date][r.time][tableNo] = {
           name: r.name,
           tel: r.tel,
-          num: r.num,
+          numAdult: r.numAdult,
+          numChild: r.numChild,
+          childPlate: r.childPlate,
+          bdayPlate: r.bdayPlate,
+          note: r.note,
           idx, //予約配列上のindex保存
           tables: r.tables
         };
       });
     });
-
-    // 日付昇順
     const dates = Object.keys(grouped).sort().filter(date=>!selectedDate||date===selectedDate);
     dates.forEach(date => {
       const dateTitle = document.createElement("div");
@@ -259,9 +335,11 @@
           "<tr>" +
             "<th>テーブル</th>" +
             "<th>キャパ</th>" +
-            "<th>人数</th>" +
+            "<th>大人</th>" +
+            "<th>子ども</th>" +
             "<th>名前</th>" +
             "<th>電話番号</th>" +
+            "<th>備考</th>" +
             "<th>操作</th>" +
           "</tr>";
         table.appendChild(thead);
@@ -281,10 +359,14 @@
 
           if (grouped[date][timeKey] && grouped[date][timeKey][tNo]) {
             const info = grouped[date][timeKey][tNo];
-            const tdNum = document.createElement("td");
-            tdNum.className = "num";
-            tdNum.textContent = info.num;
-            tr.appendChild(tdNum);
+            const tdNumA = document.createElement("td");
+            tdNumA.className = "num";
+            tdNumA.textContent = info.numAdult;
+            tr.appendChild(tdNumA);
+            const tdNumC = document.createElement("td");
+            tdNumC.className = "childnum";
+            tdNumC.textContent = info.numChild;
+            tr.appendChild(tdNumC);
             const tdName = document.createElement("td");
             tdName.className = "reserved";
             tdName.textContent = info.name;
@@ -293,6 +375,16 @@
             tdTel.className = "phone";
             tdTel.textContent = info.tel;
             tr.appendChild(tdTel);
+
+            // 備考
+            const tdNote = document.createElement("td");
+            tdNote.className = "note-cell";
+            let noteStr = [];
+            if (info.childPlate) noteStr.push("お子様プレート");
+            if (info.bdayPlate) noteStr.push("誕生日プレート");
+            if (info.note && info.note.trim() !== "") noteStr.push(info.note.trim());
+            tdNote.textContent = noteStr.join("／");
+            tr.appendChild(tdNote);
 
             // 操作欄
             const tdAct = document.createElement("td");
@@ -304,7 +396,6 @@
               // 予約データから該当テーブル削除
               const all = getReservations();
               const recIdx = info.idx;
-              // 1件予約に複数テーブルが含まれている場合は該当tableだけ消す、1個だけならその予約自体消す
               if (all[recIdx].tables.length === 1) {
                 all.splice(recIdx, 1);
               } else {
@@ -318,14 +409,13 @@
             editBtn.className = "act-btn";
             editBtn.textContent = "変更";
             editBtn.onclick = ()=>{
-              // 編集フォームに差替え
               showEditForm(info, date, timeKey, tNo, selectedDate);
             };
             tdAct.appendChild(removeBtn);
             tdAct.appendChild(editBtn);
             tr.appendChild(tdAct);
           } else {
-            Array(4).fill(0).forEach(()=> {
+            Array(6).fill(0).forEach(()=> {
               const td = document.createElement("td");
               td.className = "empty";
               td.textContent = '';
@@ -343,13 +433,16 @@
   // 編集フォーム表示
   function showEditForm(info, date, timeKey, tNo, selectedDate){
     const area = document.getElementById("listArea");
-    area.innerHTML = ""; // 一覧消して編集フォーム
+    area.innerHTML = "";
     const editDiv = document.createElement("div");
     editDiv.className = "edit-form";
     editDiv.innerHTML = `
       <h3 style="margin:5px 0 13px 7px;">予約内容の変更（${date} ${tNo} ${timeKey}）</h3>
-      <label>人数：
-        <input type="number" id="editNum" value="${info.num}" min="1" max="10" required>
+      <label>大人人数：
+        <input type="number" id="editNumA" value="${info.numAdult}" min="0" max="10" required>
+      </label>
+      <label>子ども人数：
+        <input type="number" id="editNumC" value="${info.numChild}" min="0" max="10" required>
       </label>
       <label>名前（カタカナ）：
         <input type="text" id="editName" value="${info.name}" pattern="^[ァ-ヴー]+$" required>
@@ -357,24 +450,44 @@
       <label>電話番号：
         <input type="tel" id="editTel" value="${info.tel}" pattern="^[0-9]+$" required>
       </label>
+      <label style="margin-top:12px;">
+        備考：
+        <span>
+          <input type="checkbox" id="editChildPlate" ${info.childPlate?"checked":""}>お子様プレート
+        </span>
+        <span>
+          <input type="checkbox" id="editBdayPlate" ${info.bdayPlate?"checked":""}>誕生日プレート
+        </span>
+      </label>
+      <label>その他（自由記入）:
+        <textarea id="editNote">${info.note||""}</textarea>
+      </label>
       <br />
       <button class="act-btn" id="saveEditBtn">変更を保存</button>
       <button class="act-btn" id="cancelEditBtn">キャンセル</button>
     `;
     area.appendChild(editDiv);
     document.getElementById("saveEditBtn").onclick = ()=>{
-      const editNum = document.getElementById("editNum").value.trim();
+      const editNumA = document.getElementById("editNumA").value.trim();
+      const editNumC = document.getElementById("editNumC").value.trim();
       const editName = document.getElementById("editName").value.trim();
       const editTel = document.getElementById("editTel").value.trim();
-      if (!(editNum && editName && editTel)) { alert("全て入力してください"); return;}
+      const editChildPlate = document.getElementById("editChildPlate").checked;
+      const editBdayPlate = document.getElementById("editBdayPlate").checked;
+      const editNote = document.getElementById("editNote").value.trim();
+      if (editNumA === "" || editNumC === "" || !editName || !editTel) { alert("全て入力してください"); return;}
       if (!(/^[ァ-ヴー]+$/.test(editName))) { alert("名前はカタカナで入力"); return; }
       if (!(/^[0-9]+$/.test(editTel))) { alert("電話番号は数字のみ"); return;}
       // 編集保存
       const all = getReservations();
       const recIdx = info.idx;
-      all[recIdx].num = editNum;
+      all[recIdx].numAdult = editNumA;
+      all[recIdx].numChild = editNumC;
       all[recIdx].name = editName;
       all[recIdx].tel = editTel;
+      all[recIdx].childPlate = editChildPlate;
+      all[recIdx].bdayPlate = editBdayPlate;
+      all[recIdx].note = editNote;
       saveReservations(all);
       renderList(selectedDate);
     };
@@ -386,15 +499,18 @@
     e.preventDefault();
     const date = document.getElementById("date").value;
     const time = document.getElementById("time").value;
-    const num = document.getElementById("num").value.trim();
+    const numAdult = document.getElementById("numAdult").value.trim();
+    const numChild = document.getElementById("numChild").value.trim();
     const name = document.getElementById("name").value.trim();
     const tel = document.getElementById("tel").value.trim();
+    const childPlate = document.getElementById("childPlate").checked;
+    const bdayPlate = document.getElementById("bdayPlate").checked;
+    const note = document.getElementById("note").value.trim();
 
     // テーブル複数選択
     const tables = [];
     document.querySelectorAll("input[name=tableNo]:checked").forEach(cb => tables.push(cb.value));
-
-    if (!date || !time || !num || !name || !tel) {
+    if (!date || !time || numAdult==="" || numChild==="" || !name || !tel) {
       alert("全ての項目を入力してください");
       return;
     }
@@ -421,9 +537,9 @@
         return;
       }
     }
-    reservations.push({ date, time, num, tables, name, tel });
+    reservations.push({ date, time, numAdult, numChild, tables, name, tel, childPlate, bdayPlate, note });
     saveReservations(reservations);
-    renderList(date); // =>選択日で絞り
+    renderList(date); // 選択日で絞り
     document.getElementById("resForm").reset();
     document.getElementById("time").value = "";
     renderTableChoices();
