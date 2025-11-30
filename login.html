@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>清水の森 - ログイン</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <style>
+    body {background:#6b4423; color:#fff; font-family:'Zen Kurenaido','Meiryo','Montserrat',sans-serif; min-height:100vh;}
+    .container {max-width:400px; margin:80px auto; background:#fff; color:#523a24; border-radius:17px; box-shadow:0 4px 16px #62431a88; padding:33px 30px;}
+    h1 {text-align:center; font-size:1.7em; letter-spacing:3px; margin-bottom:22px;}
+    label{font-size:1.1em;display:block;margin-bottom:16px;}
+    input[type="text"], input[type="password"] {padding:8px 13px; border-radius:9px; border:1.6px solid #ae986e;width:96%;font-size:1.13em;margin-top:6px;}
+    button {margin:24px 0 0 0; font-size:1.1em;border-radius:9px;border:none;padding:12px 0;width:100%;background:#6b4423;color:white;font-weight:600;box-shadow:0 2px 7px #6b442361;cursor:pointer;}
+    button:hover {background:#76452f;}
+    .msg {text-align:center; margin-top:19px;}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>清水の森<br>ログイン</h1>
+    <form id="loginForm">
+      <label>
+        ユーザーID<br>
+        <input type="text" id="userid" required autocomplete="username">
+      </label>
+      <label>
+        パスワード<br>
+        <input type="password" id="userpw" required autocomplete="current-password">
+      </label>
+      <button type="submit">ログイン</button>
+    </form>
+    <div class="msg" id="loginMsg"></div>
+  </div>
+  <script>
+    // サンプル: ローカルチェック（現実運用はFirestoreなどで管理）
+    const validUsers = [ // ←この例は手動設定/運用はさらに強化可能
+      {id:'cafeuser',pw:'moricafe123'},
+      {id:'demo',pw:'demo123'},
+    ];
+    document.getElementById('loginForm').onsubmit=function(e){
+      e.preventDefault();
+      const id=document.getElementById('userid').value;
+      const pw=document.getElementById('userpw').value;
+      const ok=validUsers.some(u=>u.id===id && u.pw===pw);
+      if(ok){
+        localStorage.setItem('cafe_login','ok');
+        window.location.href="index.html";
+      }else{
+        document.getElementById('loginMsg').textContent="ログイン情報が正しくありません。";
+      }
+    };
+  </script>
+</body>
+</html>
