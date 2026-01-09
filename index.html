@@ -45,11 +45,11 @@
     .table-label {margin-right: 8px; font-size: 1em;}
     .cap-text { color: #795312; font-size:0.93em; background: #eed8b0; padding:1px 8px 2px 8px; border-radius: 10px; margin-left: 5px; box-shadow: 0 1px 4px #eed8b0b6;}
     .time-choices {display: flex; gap:10px; margin:8px 0; align-items: center; flex-wrap:wrap;}
-    .time-radio {display: flex; align-items: center; background: #eed8b0; padding:7px 16px 7px 12px; border-radius: 16px; font-size: 1.01em; font-weight: 500; cursor:pointer; transition: background 0.14s; margin-right:6px; border:2px solid #dfbe87; letter-spacing:0.5px;}
+    .time-radio {display: flex; align-items: center; background: #eed8b0; padding:7px 16px 7px 12px; border-radius: 16px; font-size: 1.01em; font-weight: 500; cursor:pointer; transition: background 0.13s;}
     .time-radio.selected {background:#6b4423;color:#fff;font-weight:700;border-color:#795c31;}
     .checkboxes {display: flex; gap:13px; margin:7px 0 0 0; align-items: center; flex-wrap:wrap;}
     textarea { min-height:32px; max-height:88px; font-size:1em; resize:vertical; margin-top:5px;}
-    button, .act-btn { font-size:1.02em; padding:10px 18px; margin-top:13px; border:none; border-radius:14px; background: linear-gradient(90deg, #b7a16a 1%, #ffe7b0 90%); color: #5a3e1d; font-weight: bold; cursor:pointer; transition: background 0.13s; box-shadow:0 1px 4px #efd2a588; letter-spacing:0.6px;}
+    button, .act-btn { font-size:1.02em; padding:10px 18px; margin-top:13px; border:none; border-radius:14px; background: linear-gradient(90deg, #b7a16a 1%, #ffe7b0 90%); color: #5a3e1d; font-weight:700;}
     button:hover, .act-btn:hover { background: linear-gradient(90deg, #c4a773 5%, #e69527 99%); color:#fff;}
     h2 {margin-top:18px; font-size:1em; color:#ae874f; text-align:center;}
     .scroll-table { overflow-x:auto; margin-top:6px;}
@@ -177,234 +177,48 @@
       tc.appendChild(span);
     });
   }
-  // 時間帯ラジオ風ボタン生成（選択バグ完全修正）
+  // 時間帯ラジオ風ボタン生成（イベントデリゲーション化で堅牢化）
   let selectedTime = "";
+  let timeDelegationAttached = false;
   function renderTimeChoices(initKey="") {
     const tc = document.getElementById("timeChoices");
     tc.innerHTML = "";
+
+    // 生成: data-time を付与してクリックで選べるようにする
     TIMES.forEach(t=>{
       const span = document.createElement("span");
       span.className = "time-radio";
-      if (t.key === selectedTime) span.classList.add("selected");
+      span.dataset.time = t.key;
       span.innerHTML = `<input type="radio" name="reserveTime" value="${t.key}" style="display:none;">${t.label}`;
-      span.onclick = function() {
-        selectedTime = t.key;
-        document.getElementById("time").value = t.key;
-        renderTimeChoices(); // どのボタンも必ず反応
-      };
+      if (t.key === selectedTime) span.classList.add("selected");
       tc.appendChild(span);
     });
-    // 初期値代入
+
+    // 初期値代入（必要なら再描画）
     if (initKey && TIMES.some(x=>x.key===initKey)) {
       selectedTime = initKey;
       document.getElementById("time").value = initKey;
+      // 再描画して selected クラスを反映
       renderTimeChoices();
+      return;
     }
-  }
 
-  // 日付選択で一覧も絞り込み
-  let selectedDateVal = "";
-  document.getElementById("date").addEventListener("change", function(e){
-    selectedDateVal = e.target.value;
-    renderList(selectedDateVal);
-  });
-
-  // 予約登録
-  document.getElementById("resForm").onsubmit = async function(e) {
-    e.preventDefault();
-    const date = document.getElementById("date").value;
-    const time = document.getElementById("time").value;
-    const numAdult = document.getElementById("numAdult").value.trim();
-    const numChild = document.getElementById("numChild").value.trim();
-    const name = document.getElementById("name").value.trim();
-    const tel = document.getElementById("tel").value.trim();
-    const childPlate = document.getElementById("childPlate").checked;
-    const bdayPlate = document.getElementById("bdayPlate").checked;
-    const note = document.getElementById("note").value.trim();
-    const tables = [];
-    document.querySelectorAll("input[name=tableNo]:checked").forEach(cb => tables.push(cb.value));
-    if (!date || !time || numAdult==="" || numChild==="" || !name || !tel) {
-      alert("全ての項目を入力してください");
-      return;
-    }
-    // 名前はカタカナのみ許可
-    if (!(/^[ァ-ヴー]+$/.test(name))) {
-      alert("名前はカタカナのみで入力してください");
-      return;
-    }
-    if (!(/^[0-9]+$/.test(tel))) {
-      alert("電話番号は数字のみで入力してください");
-      return;
-    }
-    if (tables.length === 0) {
-      alert("テーブル番号を選択してください");
-      return;
-    }
-    // 重複チェック: 同じ日付・時間帯・テーブル番号に既予約があるか
-    const snapshot = await db.collection(RES_COLLECTION)
-      .where("date", "==", date).where("time", "==", time)
-      .get();
-    const overlap = snapshot.docs.some(doc => {
-      const r = doc.data();
-      return r.tables.some(t=>tables.includes(t));
-    });
-    if (overlap) {
-      alert("選択したテーブルで既に予約があります");
-      return;
-    }
-    await db.collection(RES_COLLECTION).add({
-      date, time, numAdult, numChild, tables, name, tel, childPlate, bdayPlate, note
-    });
-    document.getElementById("resForm").reset();
-    document.getElementById("time").value = "";
-    selectedTime = "";
-    renderTableChoices();
-    renderTimeChoices();
-    selectedDateVal = date;
-    renderList(selectedDateVal);
-  };
-
-  // 一覧ライブ描画（Firestoreリアルタイム反映）幅問題対応
-  let unsubscribe = null;
-  function renderList(selectedDate) {
-    const area = document.getElementById("listArea");
-    area.innerHTML = "<div style='color:#aaa;padding:14px;'>読込中...</div>";
-    if (unsubscribe) unsubscribe();
-    unsubscribe = db.collection(RES_COLLECTION)
-      .orderBy("date").orderBy("time")
-      .onSnapshot((querySnap)=>{
-        const docs = querySnap.docs.map((d,i)=>({...d.data(), _id: d.id, index:i}));
-        const filtered = selectedDate ? docs.filter(r=>r.date===selectedDate) : docs;
-        drawTable(filtered, selectedDate);
+    // イベントデリゲーションは一度だけアタッチ
+    if (!timeDelegationAttached) {
+      tc.addEventListener('click', (e) => {
+        const span = e.target.closest('.time-radio');
+        if (!span) return;
+        const val = span.dataset.time || (span.querySelector('input') && span.querySelector('input').value);
+        if (!val) return;
+        selectedTime = val;
+        document.getElementById("time").value = val;
+        // UIを更新（非同期で呼ぶことで現在のイベントループを傷つけない）
+        setTimeout(()=>{ renderTimeChoices(); }, 0);
       });
-  }
-  function drawTable(res, selectedDate) {
-    const area = document.getElementById("listArea");
-    area.innerHTML = "";
-    if (res.length === 0) {
-      area.innerHTML = "<div style='color:#aaa;padding:14px;'>予約はありません</div>";
-      return;
+      timeDelegationAttached = true;
     }
-    // グループ {date→time→table}
-    const grouped = {};
-    res.forEach((r, idx) => {
-      r.tables.forEach(tableNo => {
-        if (!grouped[r.date]) grouped[r.date]={};
-        if (!grouped[r.date][r.time]) grouped[r.date][r.time]={};
-        grouped[r.date][r.time][tableNo]={
-          numAdult:r.numAdult, numChild:r.numChild, name:r.name, tel:r.tel,
-          childPlate:r.childPlate, bdayPlate:r.bdayPlate, note:r.note,
-          _id:r._id, index:idx, tables:r.tables
-        };
-      });
-    });
-    const dates = Object.keys(grouped).sort().filter(date=>!selectedDate||date===selectedDate);
-    dates.forEach(date => {
-      const dateTitle = document.createElement("div"); dateTitle.className = "date-title"; dateTitle.textContent = date; area.appendChild(dateTitle);
 
-      TIMES.forEach(({key: timeKey, label}) => {
-        const title = document.createElement("div"); title.className = "group-title"; title.textContent = "■"+label; area.appendChild(title);
-
-        const tableWrap=document.createElement("div");tableWrap.className="scroll-table";
-        const table = document.createElement("table");
-        const thead = document.createElement("thead");
-        thead.innerHTML =
-          "<tr>" +
-            "<th>テーブル</th><th>キャパ</th><th>大人</th><th>子供</th><th>名前</th><th>電話番号</th><th>備考</th><th>操作</th>" +
-          "</tr>";
-        table.appendChild(thead);
-        const tbody = document.createElement("tbody");
-
-        TABLES.forEach(tNo => {
-          const tr = document.createElement("tr");
-          const tdNo = document.createElement("td"); tdNo.className="table-no"; tdNo.textContent = tNo; tr.appendChild(tdNo);
-          const tdCap = document.createElement("td"); tdCap.className="cap-cell"; tdCap.textContent=TABLE_CAPACITY[tNo]+"人"; tr.appendChild(tdCap);
-
-          if (grouped[date][timeKey] && grouped[date][timeKey][tNo]) {
-            const info = grouped[date][timeKey][tNo];
-            const tdNumA=document.createElement("td"); tdNumA.className="num"; tdNumA.textContent=info.numAdult; tr.appendChild(tdNumA);
-            const tdNumC=document.createElement("td"); tdNumC.className="childnum"; tdNumC.textContent=info.numChild; tr.appendChild(tdNumC);
-            const tdName=document.createElement("td"); tdName.className="reserved"; tdName.textContent=info.name; tr.appendChild(tdName);
-            const tdTel=document.createElement("td"); tdTel.className="phone"; tdTel.textContent=info.tel; tr.appendChild(tdTel);
-            // 備考
-            const tdNote=document.createElement("td"); tdNote.className="note-cell";
-            let noteStr=[]; if(info.childPlate)noteStr.push("お子様プレート"); if(info.bdayPlate)noteStr.push("誕生日プレート"); if(info.note && info.note.trim()!=="")noteStr.push(info.note.trim());
-            tdNote.textContent=noteStr.join("／"); tr.appendChild(tdNote);
-
-            // 操作欄
-            const tdAct=document.createElement("td"); tdAct.className="action-cell";
-            const removeBtn=document.createElement("button");
-            removeBtn.className="act-btn"; removeBtn.textContent="削除";
-            removeBtn.onclick= async ()=>{
-              if(confirm("本当に削除してもよいですか？")) {
-                await db.collection(RES_COLLECTION).doc(info._id).delete();
-              }
-            };
-            const editBtn=document.createElement("button");
-            editBtn.className="act-btn"; editBtn.textContent="変更";
-            editBtn.onclick=()=>{ showEditForm(info, date, timeKey, tNo, selectedDate); };
-            tdAct.appendChild(removeBtn); tdAct.appendChild(editBtn);
-            tr.appendChild(tdAct);
-          } else {
-            Array(6).fill(0).forEach(()=> {
-              const td = document.createElement("td"); td.className = "empty"; td.textContent = ''; tr.appendChild(td);
-            });
-          }
-          tbody.appendChild(tr);
-        });
-        table.appendChild(tbody);
-        tableWrap.appendChild(table);
-        area.appendChild(tableWrap);
-      });
-    });
-  }
-
-  // 編集フォーム（人数と備考のみ）
-  function showEditForm(info,date,timeKey,tNo,selectedDate){
-    const area=document.getElementById("listArea"); area.innerHTML="";
-    const editDiv=document.createElement("div"); editDiv.className="edit-form";
-    editDiv.innerHTML=`
-      <h3 style="margin:7px 0 13px 7px;font-size:1.02em;color:#a77f50">変更（${date} ${tNo} ${timeKey}）</h3>
-      <label>大人人数：
-        <input type="number" id="editNumA" value="${info.numAdult}" min="0" max="10" required>
-      </label>
-      <label>子ども人数：
-        <input type="number" id="editNumC" value="${info.numChild}" min="0" max="10" required>
-      </label>
-      <div class="edit-form-checks">
-        <label><input type="checkbox" id="editChildPlate" ${info.childPlate?"checked":""}>お子様プレート</label>
-        <label><input type="checkbox" id="editBdayPlate" ${info.bdayPlate?"checked":""}>誕生日プレート</label>
-      </div>
-      <label>その他（自由記入）:<textarea id="editNote">${info.note||""}</textarea></label>
-      <div style="margin-top:10px">
-        <button class="act-btn" id="saveEditBtn">保存</button>
-        <button class="act-btn" id="cancelEditBtn">キャンセル</button>
-      </div>
-    `;
-    area.appendChild(editDiv);
-    document.getElementById("saveEditBtn").onclick = async ()=>{
-      const editNumA=document.getElementById("editNumA").value.trim();
-      const editNumC=document.getElementById("editNumC").value.trim();
-      const editChildPlate=document.getElementById("editChildPlate").checked;
-      const editBdayPlate=document.getElementById("editBdayPlate").checked;
-      const editNote=document.getElementById("editNote").value.trim();
-      if(editNumA===""||editNumC===""){alert("人数入力必須です");return;}
-      await db.collection(RES_COLLECTION).doc(info._id).update({
-        numAdult: editNumA,
-        numChild: editNumC,
-        childPlate: editChildPlate,
-        bdayPlate: editBdayPlate,
-        note: editNote
-      });
-      renderList(selectedDate);
-    };
-    document.getElementById("cancelEditBtn").onclick =()=>renderList(selectedDate);
-  }
-
-  renderTableChoices();
-  renderTimeChoices();
-
-  renderList();
-</script>
-</body>
-</html>
+    // selected クラスを確実に反映（delegateがある前提でも保持する）
+    Array.from(tc.children).forEach(s=>{
+      if (s.dataset.time === selectedTime) s.classList.add("selected");
+      else s.classList.remove
