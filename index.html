@@ -45,11 +45,11 @@
     .table-label {margin-right: 8px; font-size: 1em;}
     .cap-text { color: #795312; font-size:0.93em; background: #eed8b0; padding:1px 8px 2px 8px; border-radius: 10px; margin-left: 5px; box-shadow: 0 1px 4px #eed8b0b6;}
     .time-choices {display: flex; gap:10px; margin:8px 0; align-items: center; flex-wrap:wrap;}
-    .time-radio {display: flex; align-items: center; background: #eed8b0; padding:7px 16px 7px 12px; border-radius: 16px; font-size: 1.01em; font-weight: 500; cursor:pointer; transition: background 0.14s; margin-right:6px; border:2px solid #dfbe87; letter-spacing:0.5px;}
+    .time-radio {display: flex; align-items: center; background: #eed8b0; padding:7px 16px 7px 12px; border-radius: 16px; font-size: 1.01em; font-weight: 500; cursor:pointer; transition: background 0.13s;}
     .time-radio.selected {background:#6b4423;color:#fff;font-weight:700;border-color:#795c31;}
     .checkboxes {display: flex; gap:13px; margin:7px 0 0 0; align-items: center; flex-wrap:wrap;}
     textarea { min-height:32px; max-height:88px; font-size:1em; resize:vertical; margin-top:5px;}
-    button, .act-btn { font-size:1.02em; padding:10px 18px; margin-top:13px; border:none; border-radius:14px; background: linear-gradient(90deg, #b7a16a 1%, #ffe7b0 90%); color: #5a3e1d; font-weight: bold; cursor:pointer; transition: background 0.13s; box-shadow:0 1px 4px #efd2a588; letter-spacing:0.6px;}
+    button, .act-btn { font-size:1.02em; padding:10px 18px; margin-top:13px; border:none; border-radius:14px; background: linear-gradient(90deg, #b7a16a 1%, #ffe7b0 90%); color: #5a3e1d; font-weight:700;}
     button:hover, .act-btn:hover { background: linear-gradient(90deg, #c4a773 5%, #e69527 99%); color:#fff;}
     h2 {margin-top:18px; font-size:1em; color:#ae874f; text-align:center;}
     .scroll-table { overflow-x:auto; margin-top:6px;}
@@ -105,11 +105,11 @@
       </label>
       <label>
         名前（カタカナのみ）:
-        <input type="text" id="name" pattern="^[ァ-ヴー]+$" required placeholder="例：カトウ">
+        <input type="text" id="name" pattern="^[ァ-ヴー]+$" placeholder="例：カトウ">
       </label>
       <label>
         電話番号:
-        <input type="tel" id="tel" pattern="^[0-9]+$" required placeholder="例：09012345678">
+        <input type="tel" id="tel" pattern="^[0-9]+$" placeholder="例：09012345678">
       </label>
       <label style="grid-column: 1/-1;">
         備考：
@@ -223,19 +223,23 @@
     const note = document.getElementById("note").value.trim();
     const tables = [];
     document.querySelectorAll("input[name=tableNo]:checked").forEach(cb => tables.push(cb.value));
-    if (!date || !time || numAdult==="" || numChild==="" || !name || !tel) {
-      alert("全ての項目を入力してください");
+
+    // 必須項目チェック（名前・電話は任意に変更）
+    if (!date || !time || numAdult==="" || numChild==="") {
+      alert("日付・時間・人数は必須です");
       return;
     }
-    // 名前はカタカナのみ許可
-    if (!(/^[ァ-ヴー]+$/.test(name))) {
+    // 名前は入力されている場合のみカタカナチェック
+    if (name && !(/^[ァ-ヴー]+$/.test(name))) {
       alert("名前はカタカナのみで入力してください");
       return;
     }
-    if (!(/^[0-9]+$/.test(tel))) {
+    // 電話番号は入力されている場合のみ数字チェック
+    if (tel && !(/^[0-9]+$/.test(tel))) {
       alert("電話番号は数字のみで入力してください");
       return;
     }
+
     if (tables.length === 0) {
       alert("テーブル番号を選択してください");
       return;
@@ -328,7 +332,7 @@
             const tdTel=document.createElement("td"); tdTel.className="phone"; tdTel.textContent=info.tel; tr.appendChild(tdTel);
             // 備考
             const tdNote=document.createElement("td"); tdNote.className="note-cell";
-            let noteStr=[]; if(info.childPlate)noteStr.push("お子様プレート"); if(info.bdayPlate)noteStr.push("誕生日プレート"); if(info.note && info.note.trim()!=="")noteStr.push(info.note.trim());
+            let noteStr=[]; if(info.childPlate)noteStr.push("お子様プレート"); if(info.bdayPlate)noteStr.push("誕生日プレート"); if(info.note && info.note.trim()!=="")noteStr.push(info.note);
             tdNote.textContent=noteStr.join("／"); tr.appendChild(tdNote);
 
             // 操作欄
