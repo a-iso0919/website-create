@@ -1,54 +1,110 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>清水の森 - ログイン</title>
-  <meta name="viewport" content="width=device-width,initial-scale=1">
   <style>
-    body {background:#6b4423; color:#fff; font-family:'Zen Kurenaido','Meiryo','Montserrat',sans-serif; min-height:100vh;}
-    .container {max-width:400px; margin:80px auto; background:#fff; color:#523a24; border-radius:17px; box-shadow:0 4px 16px #62431a88; padding:33px 30px;}
-    h1 {text-align:center; font-size:1.7em; letter-spacing:3px; margin-bottom:22px;}
-    label{font-size:1.1em;display:block;margin-bottom:16px;}
-    input[type="text"], input[type="password"] {padding:8px 13px; border-radius:9px; border:1.6px solid #ae986e;width:96%;font-size:1.13em;margin-top:6px;}
-    button {margin:24px 0 0 0; font-size:1.1em;border-radius:9px;border:none;padding:12px 0;width:100%;background:#6b4423;color:white;font-weight:600;box-shadow:0 2px 7px #6b442361;cursor:pointer;}
-    button:hover {background:#76452f;}
-    .msg {text-align:center; margin-top:19px;}
+    body{font-family:Arial, Helvetica, sans-serif;background:#f5f2ec;margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center}
+    .card{background:#fff;padding:28px;border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,0.07);width:360px;max-width:92%}
+    h1{margin:0 0 12px;font-size:20px;color:#6b4423;text-align:center}
+    label{display:block;margin:12px 0 6px;font-weight:600;color:#4b3a2a}
+    input{width:100%;padding:10px;border-radius:8px;border:1px solid #d9cdb2;background:#fffef8}
+    button{width:100%;padding:10px;margin-top:16px;border-radius:8px;border:none;background:#6b4423;color:#fff;font-weight:700;cursor:pointer}
+    .link{display:flex;justify-content:space-between;margin-top:10px;font-size:0.9rem}
+    .error{color:#b00020;margin-top:10px;font-weight:600}
+    .hint{font-size:0.86rem;color:#7a6650;margin-top:8px}
   </style>
+
+  <!-- Firebase compat -->
+  <script src="https://www.gstatic.com/firebasejs/10.10.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.10.0/firebase-auth-compat.js"></script>
 </head>
 <body>
-  <div class="container">
-    <h1>清水の森<br>ログイン</h1>
+  <div class="card">
+    <h1>清水の森 - スタッフログイン</h1>
+
     <form id="loginForm">
-      <label>
-        ユーザーID<br>
-        <input type="text" id="userid" required autocomplete="username">
-      </label>
-      <label>
-        パスワード<br>
-        <input type="password" id="userpw" required autocomplete="current-password">
-      </label>
+      <label for="email">メールアドレス</label>
+      <input id="email" type="email" required placeholder="staff01@example.com">
+
+      <label for="password">パスワード</label>
+      <input id="password" type="password" required placeholder="••••••••">
+
       <button type="submit">ログイン</button>
     </form>
-    <div class="msg" id="loginMsg"></div>
+
+    <div class="link">
+      <a href="#" id="forgotLink">パスワードを忘れた</a>
+      <a href="#" id="guestLink">ゲスト（不可）</a>
+    </div>
+
+    <div id="msg" class="error" role="status" aria-live="polite"></div>
+    <div class="hint">端末管理者（あなた）が発行したアカウントでログインしてください。</div>
   </div>
-  <script>
-    // サンプル: ローカルチェック（現実運用はFirestoreなどで管理）
-    const validUsers = [ // ←この例は手動設定/運用はさらに強化可能
-      {id:'cafeuser',pw:'moricafe123'},
-      {id:'demo',pw:'demo123'},
-    ];
-    document.getElementById('loginForm').onsubmit=function(e){
-      e.preventDefault();
-      const id=document.getElementById('userid').value;
-      const pw=document.getElementById('userpw').value;
-      const ok=validUsers.some(u=>u.id===id && u.pw===pw);
-      if(ok){
-        localStorage.setItem('cafe_login','ok');
-        window.location.href="index.html";
-      }else{
-        document.getElementById('loginMsg').textContent="ログイン情報が正しくありません。";
-      }
-    };
-  </script>
+
+<script>
+  // Firebase config: index.html と同じプロジェクトの config に合わせてください
+  const firebaseConfig = {
+    apiKey: "AIzaSyCIjAeYqS2Bbw60qU6ZUn2q04TlMFD5fdg",
+    authDomain: "website-create-shimizunomori.firebaseapp.com",
+    projectId: "website-create-shimizunori",
+    storageBucket: "website-create-shimizunori.firebasestorage.app",
+    messagingSenderId: "356236905700",
+    appId: "1:356236905700:web:fdae74bcebb1e29856b0f1",
+    measurementId: "G-69W2528VVT"
+  };
+  firebase.initializeApp(firebaseConfig);
+
+  const msg = document.getElementById('msg');
+  const loginForm = document.getElementById('loginForm');
+
+  // すでにログイン済みなら自動リダイレクト（index.html）
+  firebase.auth().onAuthStateChanged(user=>{
+    if(user){
+      // ログイン済み -> index.html に遷移
+      window.location.href = 'index.html';
+    }
+  });
+
+  loginForm.onsubmit = async function(e){
+    e.preventDefault();
+    msg.textContent = '';
+    const email = document.getElementById('email').value.trim();
+    const password = document.getElementById('password').value;
+
+    try {
+      await firebase.auth().signInWithEmailAndPassword(email, password);
+      // 成功後は onAuthStateChanged 側でリダイレクトされます
+    } catch (err) {
+      console.error('signIn error', err);
+      // エラーメッセージを日本語化（簡易）
+      let text = err.message || 'ログインに失敗しました';
+      if (err.code === 'auth/user-not-found') text = 'ユーザーが見つかりません';
+      if (err.code === 'auth/wrong-password') text = 'パスワードが間違っています';
+      if (err.code === 'auth/too-many-requests') text = 'アクセス制限されています。しばらくお試しください';
+      msg.textContent = text;
+    }
+  };
+
+  // パスワードリセット（メール受信できるアドレスを使っている場合）
+  document.getElementById('forgotLink').onclick = function(e){
+    e.preventDefault();
+    const email = document.getElementById('email').value.trim();
+    if(!email){ alert('まずメールアドレスを入力してください'); return; }
+    firebase.auth().sendPasswordResetEmail(email).then(()=>{
+      alert('パスワードリセット用メールを送信しました');
+    }).catch(err=>{
+      console.error('sendPasswordResetEmail', err);
+      alert('送信に失敗しました: ' + (err.message || err));
+    });
+  };
+
+  // ゲストリンクは機能させない（将来的にカスタムトークンや別フローを入れる場合に使う）
+  document.getElementById('guestLink').onclick = function(e){
+    e.preventDefault();
+    alert('ゲストログインは無効です。管理者が発行したアカウントでログインしてください。');
+  };
+</script>
 </body>
 </html>
