@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <title>清水の森 - カフェ予約管理</title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <!-- Google Fonts例 -->
+  <!-- Google Fonts -->
   <link href="https://fonts.googleapis.com/css2?family=Zen+Kurenaido&family=Montserrat:wght@500;700&display=swap" rel="stylesheet">
   <!-- External stylesheet -->
   <link rel="stylesheet" href="styles.css?v=1.0">
@@ -123,7 +123,8 @@
       tc.appendChild(span);
     });
   }
-  // 時間帯ラジオ風ボタン生成
+
+  // 時間帯ラジオ風ボタン生成（修正済み）
   let selectedTime = "";
   function renderTimeChoices(initKey="") {
     const tc = document.getElementById("timeChoices");
@@ -132,6 +133,7 @@
       const span = document.createElement("span");
       span.className = "time-radio";
       if (t.key === selectedTime) span.classList.add("selected");
+      // hidden radio kept for form compatibility, but UI controlled via span click
       span.innerHTML = `<input type="radio" name="reserveTime" value="${t.key}" style="display:none;">${t.label}`;
       span.onclick = function() {
         selectedTime = t.key;
@@ -163,8 +165,8 @@
     const numChild = document.getElementById("numChild").value.trim();
     const name = document.getElementById("name").value.trim();
     const tel = document.getElementById("tel").value.trim();
-    const childPlate = document.getElementById("childPlate").checked;
-    const bdayPlate = document.getElementById("bdayPlate").checked;
+    const childPlate = document.getElementById("childPlate") ? document.getElementById("childPlate").checked : false;
+    const bdayPlate = document.getElementById("bdayPlate") ? document.getElementById("bdayPlate").checked : false;
     const note = document.getElementById("note").value.trim();
     const tables = [];
     document.querySelectorAll("input[name=tableNo]:checked").forEach(cb => tables.push(cb.value));
@@ -244,6 +246,7 @@
         area.innerHTML = "<div style='color:#a00;padding:14px;'>データの読み込みに失敗しました: "+(err.message||err)+"</div>";
       });
   }
+
   function drawTable(res, selectedDate) {
     const area = document.getElementById("listArea");
     area.innerHTML = "";
@@ -292,7 +295,7 @@
             const tdName=document.createElement("td"); tdName.className="reserved"; tdName.textContent=info.name; tr.appendChild(tdName);
             const tdTel=document.createElement("td"); tdTel.className="phone"; tdTel.textContent=info.tel; tr.appendChild(tdTel);
             const tdNote=document.createElement("td"); tdNote.className="note-cell";
-            let noteStr=[]; if(info.childPlate)noteStr.push("お子様プレート"); if(info.bdayPlate)noteStr.push("誕生日プレート"); if(info.note && info.note.trim()!=="")noteStr.push(info.n[...]
+            let noteStr=[]; if(info.childPlate)noteStr.push("お子様プレート"); if(info.bdayPlate)noteStr.push("誕生日プレート"); if(info.note && info.note.trim()!=="")noteStr.push(info.note);
             tdNote.textContent=noteStr.join("／"); tr.appendChild(tdNote);
 
             const tdAct=document.createElement("td"); tdAct.className="action-cell";
@@ -367,7 +370,7 @@
         });
       } catch (err) {
         console.error('Update failed', err);
-        alert('更新に失敗しまし���: ' + (err.message || err));
+        alert('更新に失敗しました: ' + (err.message || err));
       }
       renderList(selectedDate);
     };
