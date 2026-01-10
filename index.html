@@ -128,24 +128,43 @@
   let selectedTime = "";
   function renderTimeChoices(initKey="") {
     const tc = document.getElementById("timeChoices");
+    if (!tc) return;
     tc.innerHTML = "";
-    TIMES.forEach(t=>{
-      const span = document.createElement("span");
-      span.className = "time-radio";
-      if (t.key === selectedTime) span.classList.add("selected");
-      // hidden radio kept for form compatibility, but UI controlled via span click
-      span.innerHTML = `<input type="radio" name="reserveTime" value="${t.key}" style="display:none;">${t.label}`;
-      span.onclick = function() {
+
+    // ボタンを <span> ではなく <button> で作成し、data-time 属性で値を保持します
+    TIMES.forEach(t => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "time-radio";
+      btn.setAttribute("data-time", t.key);
+      btn.textContent = t.label;
+
+      // 初期選択の反映
+      if (t.key === selectedTime || t.key === initKey) {
+        btn.classList.add("selected");
+      }
+
+      btn.addEventListener("click", () => {
+        // 既選択の解除
+        tc.querySelectorAll(".time-radio.selected").forEach(el => el.classList.remove("selected"));
+        // 今回のボタンを選択状態にする
+        btn.classList.add("selected");
         selectedTime = t.key;
         document.getElementById("time").value = t.key;
-        renderTimeChoices();
-      };
-      tc.appendChild(span);
+      });
+
+      tc.appendChild(btn);
     });
-    if (initKey && TIMES.some(x=>x.key===initKey)) {
+
+    // initKey が渡された場合は隠し input と UI を同期しておく
+    if (initKey && TIMES.some(x => x.key === initKey)) {
       selectedTime = initKey;
       document.getElementById("time").value = initKey;
-      renderTimeChoices();
+      const target = tc.querySelector(`[data-time="${initKey}"]`);
+      if (target) {
+        tc.querySelectorAll(".time-radio.selected").forEach(el => el.classList.remove("selected"));
+        target.classList.add("selected");
+      }
     }
   }
 
