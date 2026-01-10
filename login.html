@@ -44,12 +44,12 @@
   </div>
 
 <script>
-  // Firebase config: index.html と同じプロジェクトの config に合わせてください
+  // Firebase config: Project settings の Web アプリ設定に合わせる
   const firebaseConfig = {
     apiKey: "AIzaSyCIjAeYqS2Bbw60qU6ZUn2q04TlMFD5fdg",
     authDomain: "website-create-shimizunomori.firebaseapp.com",
-    projectId: "website-create-shimizunori",
-    storageBucket: "website-create-shimizunori.firebasestorage.app",
+    projectId: "website-create-shimizunomori",
+    storageBucket: "website-create-shimizunomori.appspot.com",
     messagingSenderId: "356236905700",
     appId: "1:356236905700:web:fdae74bcebb1e29856b0f1",
     measurementId: "G-69W2528VVT"
@@ -62,7 +62,6 @@
   // すでにログイン済みなら自動リダイレクト（index.html）
   firebase.auth().onAuthStateChanged(user=>{
     if(user){
-      // ログイン済み -> index.html に遷移
       window.location.href = 'index.html';
     }
   });
@@ -78,7 +77,6 @@
       // 成功後は onAuthStateChanged 側でリダイレクトされます
     } catch (err) {
       console.error('signIn error', err);
-      // エラーメッセージを日本語化（簡易）
       let text = err.message || 'ログインに失敗しました';
       if (err.code === 'auth/user-not-found') text = 'ユーザーが見つかりません';
       if (err.code === 'auth/wrong-password') text = 'パスワードが間違っています';
@@ -100,7 +98,6 @@
     });
   };
 
-  // ゲストリンクは機能させない（将来的にカスタムトークンや別フローを入れる場合に使う）
   document.getElementById('guestLink').onclick = function(e){
     e.preventDefault();
     alert('ゲストログインは無効です。管理者が発行したアカウントでログインしてください。');
