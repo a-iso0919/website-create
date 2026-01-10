@@ -127,14 +127,12 @@
   </div>
 
 <script>
-  // ページ表示時: ログインしてるかチェック（運用ポリシーによって残す/削除してください）
-  if(localStorage.getItem('cafe_login')!=='ok'){window.location.href="login.html";}
-
   // --- Firebase 設定（コンソールから取得した config に置き換え済み）
+  // 確認: projectId が website-create-shimizunori であること
   const firebaseConfig = {
     apiKey: "AIzaSyCIjAeYqS2Bbw60qU6ZUn2q04TlMFD5fdg",
-    authDomain: "website-create-shimizunomori.firebaseapp.com",
-    projectId: "website-create-shimizunomori",
+    authDomain: "website-create-shimizunori.firebaseapp.com",
+    projectId: "website-create-shimizunori",
     storageBucket: "website-create-shimizunori.firebasestorage.app",
     messagingSenderId: "356236905700",
     appId: "1:356236905700:web:fdae74bcebb1e29856b0f1",
@@ -144,16 +142,17 @@
   const db = firebase.firestore();
   const RES_COLLECTION = "shimizu_cafe_reservations";
 
-  // --- Authentication: 自動匿名サインイン（Firestoreルールが認証ユーザーのみ許可の場合に必要）
+  // --- 認証チェック: 未認証なら login.html にリダイレクト（login.html で Email/Password による signIn）
   firebase.auth().onAuthStateChanged(user => {
     if (user) {
-      console.log('Signed in:', user.uid, user.isAnonymous ? '(anonymous)' : '');
+      console.log('Signed in:', user.uid, user.email || '(no email)');
+      // 初期表示・取得はここで開始
+      renderTableChoices();
+      renderTimeChoices();
+      renderList();
     } else {
-      firebase.auth().signInAnonymously().catch(err => {
-        console.error('Anonymous sign-in failed:', err);
-        // ここでユーザーに知らせるとデバッグしやすい
-        alert('匿名サインインに失敗しました: ' + (err.message || err));
-      });
+      // 未認証ならログインページへ
+      window.location.href = 'login.html';
     }
   });
 
@@ -192,7 +191,7 @@
       tc.appendChild(span);
     });
   }
-  // 時間帯ラジオ風ボタン生成（選択バグ完全修正）
+  // 時間帯ラジオ風ボタン生成
   let selectedTime = "";
   function renderTimeChoices(initKey="") {
     const tc = document.getElementById("timeChoices");
@@ -205,11 +204,10 @@
       span.onclick = function() {
         selectedTime = t.key;
         document.getElementById("time").value = t.key;
-        renderTimeChoices(); // どのボタンも必ず反応
+        renderTimeChoices();
       };
       tc.appendChild(span);
     });
-    // 初期値代入
     if (initKey && TIMES.some(x=>x.key===initKey)) {
       selectedTime = initKey;
       document.getElementById("time").value = initKey;
@@ -239,35 +237,32 @@
     const tables = [];
     document.querySelectorAll("input[name=tableNo]:checked").forEach(cb => tables.push(cb.value));
 
-    // 必須項目チェック（名前・電話は任意に変更）
+    // 必須項目チェック
     if (!date || !time || numAdult==="" || numChild==="") {
       alert("日付・時間・人数は必須です");
       return;
     }
-    // 名前は入力されている場合のみカタカナチェック
     if (name && !(/^[ァ-ヴー]+$/.test(name))) {
       alert("名前はカタカナのみで入力してください");
       return;
     }
-    // 電話番号は入力されている場合のみ数字チェック
     if (tel && !(/^[0-9]+$/.test(tel))) {
       alert("電話番号は数字のみで入力してください");
       return;
     }
-
     if (tables.length === 0) {
       alert("テーブル番号を選択してください");
       return;
     }
 
-    // 重複チェック: 同じ日付・時間帯・テー���ル番号に既予約があるか
+    // 重複チェック
     try {
       const snapshot = await db.collection(RES_COLLECTION)
         .where("date", "==", date).where("time", "==", time)
         .get();
       const overlap = snapshot.docs.some(doc => {
         const r = doc.data();
-        return r.tables.some(t=>tables.includes(t));
+        return (r.tables||[]).some(t=>tables.includes(t));
       });
       if (overlap) {
         alert("選択したテーブルで既に予約があります");
@@ -300,13 +295,12 @@
     renderList(selectedDateVal);
   };
 
-  // 一覧ライブ描画（Firestoreリアルタイム反映）幅問題対応
+  // 一覧ライブ描画
   let unsubscribe = null;
   function renderList(selectedDate) {
     const area = document.getElementById("listArea");
     area.innerHTML = "<div style='color:#aaa;padding:14px;'>読込中...</div>";
     if (unsubscribe) unsubscribe();
-    // 注意: 既存ドキュメントに createdAt がないと orderBy("createdAt") が問題になる場合があります
     unsubscribe = db.collection(RES_COLLECTION)
       .orderBy("date").orderBy("time").orderBy("createdAt")
       .onSnapshot((querySnap)=>{
@@ -325,7 +319,6 @@
       area.innerHTML = "<div style='color:#aaa;padding:14px;'>予約はありません</div>";
       return;
     }
-    // グループ {date→time→table}
     const grouped = {};
     res.forEach((r, idx) => {
       (r.tables||[]).forEach(tableNo => {
@@ -366,12 +359,10 @@
             const tdNumC=document.createElement("td"); tdNumC.className="childnum"; tdNumC.textContent=info.numChild; tr.appendChild(tdNumC);
             const tdName=document.createElement("td"); tdName.className="reserved"; tdName.textContent=info.name; tr.appendChild(tdName);
             const tdTel=document.createElement("td"); tdTel.className="phone"; tdTel.textContent=info.tel; tr.appendChild(tdTel);
-            // 備考
             const tdNote=document.createElement("td"); tdNote.className="note-cell";
             let noteStr=[]; if(info.childPlate)noteStr.push("お子様プレート"); if(info.bdayPlate)noteStr.push("誕生日プレート"); if(info.note && info.note.trim()!=="")noteStr.push(info.note);
             tdNote.textContent=noteStr.join("／"); tr.appendChild(tdNote);
 
-            // 操作欄
             const tdAct=document.createElement("td"); tdAct.className="action-cell";
             const removeBtn=document.createElement("button");
             removeBtn.className="act-btn"; removeBtn.textContent="削除";
@@ -450,11 +441,6 @@
     };
     document.getElementById("cancelEditBtn").onclick =()=>renderList(selectedDate);
   }
-
-  renderTableChoices();
-  renderTimeChoices();
-
-  renderList();
 </script>
 </body>
 </html>
