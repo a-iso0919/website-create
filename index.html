@@ -349,23 +349,42 @@
     });
   }
 
-  // 編集フォーム（人数と備考のみ）
-  function showEditForm(info,date,timeKey,tNo,selectedDate){
-    const area=document.getElementById("listArea"); area.innerHTML="";
-    const editDiv=document.createElement("div"); editDiv.className="edit-form";
-    editDiv.innerHTML=`
-      <h3 style="margin:7px 0 13px 7px;font-size:1.02em;color:#a77f50">変更（${date} ${tNo} ${timeKey}）</h3>
+  // 編集フォーム（人数と備考、名前・電話も編集可能に拡張）
+  function showEditForm(info, date, timeKey, tNo, selectedDate) {
+    const area = document.getElementById("listArea");
+    area.innerHTML = "";
+    const editDiv = document.createElement("div");
+    editDiv.className = "edit-form";
+    editDiv.innerHTML = `
+      <h3 style="margin:7px 0 13px 7px;font-size:1.02em;color:#a77f50">
+        変更（${date} ${tNo} ${timeKey}）
+      </h3>
+
+      <label>名前（カタカナのみ）：
+        <input type="text" id="editName" value="${info.name || ''}" placeholder="例：カトウ">
+      </label>
+
+      <label>電話番号：
+        <input type="tel" id="editTel" value="${info.tel || ''}" placeholder="例：09012345678">
+      </label>
+
       <label>大人人数：
         <input type="number" id="editNumA" value="${info.numAdult}" min="0" max="10" required>
       </label>
+
       <label>子ども人数：
         <input type="number" id="editNumC" value="${info.numChild}" min="0" max="10" required>
       </label>
+
       <div class="edit-form-checks">
-        <label><input type="checkbox" id="editChildPlate" ${info.childPlate?"checked":""}>お子様プレート</label>
-        <label><input type="checkbox" id="editBdayPlate" ${info.bdayPlate?"checked":""}>誕生日プレート</label>
+        <label><input type="checkbox" id="editChildPlate" ${info.childPlate ? "checked" : ""}>お子様プレート</label>
+        <label><input type="checkbox" id="editBdayPlate" ${info.bdayPlate ? "checked" : ""}>誕生日プレート</label>
       </div>
-      <label>その他（自由記入）:<textarea id="editNote">${info.note||""}</textarea></label>
+
+      <label>その他（自由記入）:
+        <textarea id="editNote">${info.note || ""}</textarea>
+      </label>
+
       <div style="margin-top:10px">
         <button class="act-btn" id="saveEditBtn">保存</button>
         <button class="act-btn" id="cancelEditBtn">キャンセル</button>
