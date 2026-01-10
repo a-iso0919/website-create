@@ -416,6 +416,8 @@
       }
       try {
         await db.collection(RES_COLLECTION).doc(info._id).update({
+          name: editName || null,
+          tel: editTel || null,
           numAdult: editNumA,
           numChild: editNumC,
           childPlate: editChildPlate,
@@ -428,7 +430,9 @@
       }
       renderList(selectedDate);
     };
-    document.getElementById("cancelEditBtn").onclick =()=>renderList(selectedDate);
+
+    // キャンセル
+    document.getElementById("cancelEditBtn").onclick = () => renderList(selectedDate);
   }
 </script>
 </body>
