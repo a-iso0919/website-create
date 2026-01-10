@@ -77,6 +77,7 @@
   <!-- Firebase setup -->
   <script src="https://www.gstatic.com/firebasejs/10.10.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.10.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.10.0/firebase-auth-compat.js"></script>
 </head>
 <body>
   <div class="container">
@@ -141,6 +142,17 @@
   firebase.initializeApp(firebaseConfig);
   const db = firebase.firestore();
   const RES_COLLECTION = "shimizu_cafe_reservations";
+
+  // --- Authentication: 自動匿名サインイン（Firestoreルールが認証ユーザーのみ許可の場合に必要）
+  firebase.auth().onAuthStateChanged(user => {
+    if (user) {
+      console.log('Signed in:', user.uid, user.isAnonymous ? '(anonymous)' : '');
+    } else {
+      firebase.auth().signInAnonymously().catch(err => {
+        console.error('Anonymous sign-in failed:', err);
+      });
+    }
+  });
 
   // テーブル定義
   const TABLE_CAPACITY = {"T1":4,"T2":4,"T4":2,"T5":2,"T6":2,"T7":2,"T8":2,"T9":2,"T10":2};
@@ -257,7 +269,8 @@
       return;
     }
     await db.collection(RES_COLLECTION).add({
-      date, time, numAdult, numChild, tables, name, tel, childPlate, bdayPlate, note
+      date, time, numAdult, numChild, tables, name, tel, childPlate, bdayPlate, note,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
     });
     document.getElementById("resForm").reset();
     document.getElementById("time").value = "";
@@ -275,7 +288,7 @@
     area.innerHTML = "<div style='color:#aaa;padding:14px;'>読込中...</div>";
     if (unsubscribe) unsubscribe();
     unsubscribe = db.collection(RES_COLLECTION)
-      .orderBy("date").orderBy("time")
+      .orderBy("date").orderBy("time").orderBy("createdAt")
       .onSnapshot((querySnap)=>{
         const docs = querySnap.docs.map((d,i)=>({...d.data(), _id: d.id, index:i}));
         const filtered = selectedDate ? docs.filter(r=>r.date===selectedDate) : docs;
