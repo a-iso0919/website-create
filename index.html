@@ -74,7 +74,7 @@
     .edit-form textarea { width:145px;}
     .edit-form-checks { display:flex;gap:12px;margin-top:6px;}
   </style>
-  <!-- Firebase setup -->
+  <!-- Firebase setup (compat) -->
   <script src="https://www.gstatic.com/firebasejs/10.10.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.10.0/firebase-firestore-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.10.0/firebase-auth-compat.js"></script>
@@ -127,17 +127,18 @@
   </div>
 
 <script>
-  // ページ表示時: ログインしてるかチェック
+  // ページ表示時: ログインしてるかチェック（運用ポリシーによって残す/削除してください）
   if(localStorage.getItem('cafe_login')!=='ok'){window.location.href="login.html";}
 
-  // Firebase conf（自分のconfigに差し替え!）
+  // --- Firebase 設定（コンソールから取得した config に置き換え済み）
   const firebaseConfig = {
-    apiKey: "AIzaSyDtyhHZPp4HulSRVn1hJgf003EcrBJh6_u",
-    authDomain: "cafe-demo.firebaseapp.com",
-    projectId: "cafe-demo",
-    storageBucket: "cafe-demo.appspot.com",
-    messagingSenderId: "8659190883",
-    appId: "1:8659190883:web:486b059e7a7b4fdfe0b731"
+    apiKey: "AIzaSyCIjAeYqS2Bbw60qU6ZUn2q04TlMFD5fdg",
+    authDomain: "website-create-shimizunomori.firebaseapp.com",
+    projectId: "website-create-shimizunomori",
+    storageBucket: "website-create-shimizunori.firebasestorage.app",
+    messagingSenderId: "356236905700",
+    appId: "1:356236905700:web:fdae74bcebb1e29856b0f1",
+    measurementId: "G-69W2528VVT"
   };
   firebase.initializeApp(firebaseConfig);
   const db = firebase.firestore();
@@ -150,6 +151,8 @@
     } else {
       firebase.auth().signInAnonymously().catch(err => {
         console.error('Anonymous sign-in failed:', err);
+        // ここでユーザーに知らせるとデバッグしやすい
+        alert('匿名サインインに失敗しました: ' + (err.message || err));
       });
     }
   });
@@ -256,22 +259,38 @@
       alert("テーブル番号を選択してください");
       return;
     }
-    // 重複チェック: 同じ日付・時間帯・テーブル番号に既予約があるか
-    const snapshot = await db.collection(RES_COLLECTION)
-      .where("date", "==", date).where("time", "==", time)
-      .get();
-    const overlap = snapshot.docs.some(doc => {
-      const r = doc.data();
-      return r.tables.some(t=>tables.includes(t));
-    });
-    if (overlap) {
-      alert("選択したテーブルで既に予約があります");
+
+    // 重複チェック: 同じ日付・時間帯・テー���ル番号に既予約があるか
+    try {
+      const snapshot = await db.collection(RES_COLLECTION)
+        .where("date", "==", date).where("time", "==", time)
+        .get();
+      const overlap = snapshot.docs.some(doc => {
+        const r = doc.data();
+        return r.tables.some(t=>tables.includes(t));
+      });
+      if (overlap) {
+        alert("選択したテーブルで既に予約があります");
+        return;
+      }
+    } catch (err) {
+      console.error('Overlap check failed', err);
+      alert('予約の重複チェックに失敗しました: ' + (err.message || err));
       return;
     }
-    await db.collection(RES_COLLECTION).add({
-      date, time, numAdult, numChild, tables, name, tel, childPlate, bdayPlate, note,
-      createdAt: firebase.firestore.FieldValue.serverTimestamp()
-    });
+
+    // 登録（エラー時にわかるように try/catch）
+    try {
+      await db.collection(RES_COLLECTION).add({
+        date, time, numAdult, numChild, tables, name, tel, childPlate, bdayPlate, note,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+    } catch (err) {
+      console.error('Firestore add error', err);
+      alert('予約登録に失敗しました: ' + (err.message || err));
+      return;
+    }
+
     document.getElementById("resForm").reset();
     document.getElementById("time").value = "";
     selectedTime = "";
@@ -287,12 +306,16 @@
     const area = document.getElementById("listArea");
     area.innerHTML = "<div style='color:#aaa;padding:14px;'>読込中...</div>";
     if (unsubscribe) unsubscribe();
+    // 注意: 既存ドキュメントに createdAt がないと orderBy("createdAt") が問題になる場合があります
     unsubscribe = db.collection(RES_COLLECTION)
       .orderBy("date").orderBy("time").orderBy("createdAt")
       .onSnapshot((querySnap)=>{
         const docs = querySnap.docs.map((d,i)=>({...d.data(), _id: d.id, index:i}));
         const filtered = selectedDate ? docs.filter(r=>r.date===selectedDate) : docs;
         drawTable(filtered, selectedDate);
+      }, err => {
+        console.error('onSnapshot error', err);
+        area.innerHTML = "<div style='color:#a00;padding:14px;'>データの読み込みに失敗しました: "+(err.message||err)+"</div>";
       });
   }
   function drawTable(res, selectedDate) {
@@ -305,7 +328,7 @@
     // グループ {date→time→table}
     const grouped = {};
     res.forEach((r, idx) => {
-      r.tables.forEach(tableNo => {
+      (r.tables||[]).forEach(tableNo => {
         if (!grouped[r.date]) grouped[r.date]={};
         if (!grouped[r.date][r.time]) grouped[r.date][r.time]={};
         grouped[r.date][r.time][tableNo]={
@@ -354,7 +377,12 @@
             removeBtn.className="act-btn"; removeBtn.textContent="削除";
             removeBtn.onclick= async ()=>{
               if(confirm("本当に削除してもよいですか？")) {
-                await db.collection(RES_COLLECTION).doc(info._id).delete();
+                try {
+                  await db.collection(RES_COLLECTION).doc(info._id).delete();
+                } catch (err) {
+                  console.error('Delete failed', err);
+                  alert('削除に失敗しました: ' + (err.message || err));
+                }
               }
             };
             const editBtn=document.createElement("button");
@@ -406,13 +434,18 @@
       const editBdayPlate=document.getElementById("editBdayPlate").checked;
       const editNote=document.getElementById("editNote").value.trim();
       if(editNumA===""||editNumC===""){alert("人数入力必須です");return;}
-      await db.collection(RES_COLLECTION).doc(info._id).update({
-        numAdult: editNumA,
-        numChild: editNumC,
-        childPlate: editChildPlate,
-        bdayPlate: editBdayPlate,
-        note: editNote
-      });
+      try {
+        await db.collection(RES_COLLECTION).doc(info._id).update({
+          numAdult: editNumA,
+          numChild: editNumC,
+          childPlate: editChildPlate,
+          bdayPlate: editBdayPlate,
+          note: editNote
+        });
+      } catch (err) {
+        console.error('Update failed', err);
+        alert('更新に失敗しました: ' + (err.message || err));
+      }
       renderList(selectedDate);
     };
     document.getElementById("cancelEditBtn").onclick =()=>renderList(selectedDate);
