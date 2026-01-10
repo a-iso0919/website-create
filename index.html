@@ -391,13 +391,29 @@
       </div>
     `;
     area.appendChild(editDiv);
-    document.getElementById("saveEditBtn").onclick = async ()=>{
-      const editNumA=document.getElementById("editNumA").value.trim();
-      const editNumC=document.getElementById("editNumC").value.trim();
-      const editChildPlate=document.getElementById("editChildPlate").checked;
-      const editBdayPlate=document.getElementById("editBdayPlate").checked;
-      const editNote=document.getElementById("editNote").value.trim();
-      if(editNumA===""||editNumC===""){alert("人数入力必須です");return;}
+    // 保存ボタン処理
+    document.getElementById("saveEditBtn").onclick = async () => {
+      const editName = document.getElementById("editName").value.trim();
+      const editTel = document.getElementById("editTel").value.trim();
+      const editNumA = document.getElementById("editNumA").value.trim();
+      const editNumC = document.getElementById("editNumC").value.trim();
+      const editChildPlate = document.getElementById("editChildPlate").checked;
+      const editBdayPlate = document.getElementById("editBdayPlate").checked;
+      const editNote = document.getElementById("editNote").value.trim();
+
+      // バリデーション
+      if (editNumA === "" || editNumC === "") {
+        alert("人���入力必須です");
+        return;
+      }
+      if (editName && !(/^[ァ-ヴー]+$/.test(editName))) {
+        alert("名前はカタカナのみで入力してください");
+        return;
+      }
+      if (editTel && !(/^[0-9]+$/.test(editTel))) {
+        alert("電話番号は数字のみで入力してください");
+        return;
+      }
       try {
         await db.collection(RES_COLLECTION).doc(info._id).update({
           numAdult: editNumA,
