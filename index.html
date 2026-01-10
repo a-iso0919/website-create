@@ -127,13 +127,12 @@
   </div>
 
 <script>
-  // --- Firebase 設定（コンソールから取得した config に置き換え済み）
-  // 確認: projectId が website-create-shimizunori であること
+  // --- Firebase 設定（コンソールの Web アプリ設定に合わせてください）
   const firebaseConfig = {
     apiKey: "AIzaSyCIjAeYqS2Bbw60qU6ZUn2q04TlMFD5fdg",
-    authDomain: "website-create-shimizunori.firebaseapp.com",
-    projectId: "website-create-shimizunori",
-    storageBucket: "website-create-shimizunori.firebasestorage.app",
+    authDomain: "website-create-shimizunomori.firebaseapp.com",
+    projectId: "website-create-shimizunomori",
+    storageBucket: "website-create-shimizunomori.appspot.com",
     messagingSenderId: "356236905700",
     appId: "1:356236905700:web:fdae74bcebb1e29856b0f1",
     measurementId: "G-69W2528VVT"
@@ -142,7 +141,7 @@
   const db = firebase.firestore();
   const RES_COLLECTION = "shimizu_cafe_reservations";
 
-  // --- 認証チェック: 未認証なら login.html にリダイレクト（login.html で Email/Password による signIn）
+  // --- 認証チェック: 未認証なら login.html にリダイレクト
   firebase.auth().onAuthStateChanged(user => {
     if (user) {
       console.log('Signed in:', user.uid, user.email || '(no email)');
@@ -151,7 +150,6 @@
       renderTimeChoices();
       renderList();
     } else {
-      // 未認証ならログインページへ
       window.location.href = 'login.html';
     }
   });
