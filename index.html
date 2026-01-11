@@ -264,7 +264,8 @@
         area.innerHTML = "<div style='color:#a00;padding:14px;'>データの読み込みに失敗しました: "+(err.message||err)+"</div>";
       });
   }
-
+  
+  // 予約一覧表
   function drawTable(res, selectedDate) {
     const area = document.getElementById("listArea");
     area.innerHTML = "";
@@ -311,7 +312,7 @@
         table.appendChild(thead);
         const tbody = document.createElement("tbody");
   
-        TABLES.forEach(tNo => {
+        TABLES.forEach((tNo, tIndex) => {
           const tr = document.createElement("tr");
   
           const tdNo = document.createElement("td");
@@ -411,9 +412,8 @@
               tdAct.appendChild(editBtn);
               tr.appendChild(tdAct);
             }
-            // if not first table of group then merged cells are omitted here
           } else {
-            // empty placeholders (columns count must match merged columns count)
+            // 空セルを並べる（既存の未予約行と同様）
             Array(6).fill(0).forEach(() => {
               const td = document.createElement("td");
               td.className = "empty";
@@ -421,6 +421,18 @@
               tr.appendChild(td);
             });
           }
+  
+          // --- ここで next row が同一予約かを判定して区切り線を消す ---
+          // next table name
+          const nextTable = TABLES[tIndex + 1];
+          if (hasRes && nextTable) {
+            const nextInfo = grouped[date] && grouped[date][timeKey] && grouped[date][timeKey][nextTable];
+            if (nextInfo && nextInfo._id === grouped[date][timeKey][tNo]._id) {
+              // next row belongs to same reservation -> remove divider between them
+              tr.classList.add('no-divider');
+            }
+          }
+          // ---------------------------------------------------------
   
           tbody.appendChild(tr);
         });
