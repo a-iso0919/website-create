@@ -268,7 +268,7 @@
   function drawTable(res, selectedDate) {
     const area = document.getElementById("listArea");
     area.innerHTML = "";
-    if (res.length === 0) {
+    if (!res || res.length === 0) {
       area.innerHTML = "<div style='color:#aaa;padding:14px;'>予約はありません</div>";
       return;
     }
@@ -276,7 +276,7 @@
     // grouped[date][time][tableNo] = info
     const grouped = {};
     res.forEach((r, idx) => {
-      (r.tables||[]).forEach(tableNo => {
+      (r.tables || []).forEach(tableNo => {
         if (!grouped[r.date]) grouped[r.date] = {};
         if (!grouped[r.date][r.time]) grouped[r.date][r.time] = {};
         grouped[r.date][r.time][tableNo] = {
@@ -287,7 +287,7 @@
       });
     });
   
-    const dates = Object.keys(grouped).sort().filter(date => !selectedDate || date === selectedDate);
+    const dates = Object.keys(grouped).sort().filter(d => !selectedDate || d === selectedDate);
     dates.forEach(date => {
       const dateTitle = document.createElement("div");
       dateTitle.className = "date-title";
@@ -306,41 +306,33 @@
         const thead = document.createElement("thead");
         thead.innerHTML =
           "<tr>" +
-            "<th>テーブル</th><th>キャパ</th><th>大人</th><th>子供</th><th>名前</th><th>電話番号</th><th>備考</th><th>操作</th>" +
+            "<th>テーブル</th><th>キャパ</th><th>大人</th><th>子ども</th><th>名前</th><th>電話番号</th><th>備考</th><th>操作</th>" +
           "</tr>";
         table.appendChild(thead);
         const tbody = document.createElement("tbody");
   
-        // For each table row, either render empty row or a reservation row.
-        // When a reservation spans multiple tables, render the shared columns with rowspan
         TABLES.forEach(tNo => {
           const tr = document.createElement("tr");
   
-          // Table number cell
           const tdNo = document.createElement("td");
           tdNo.className = "table-no";
           tdNo.textContent = tNo;
           tr.appendChild(tdNo);
   
-          // Capacity cell
           const tdCap = document.createElement("td");
           tdCap.className = "cap-cell";
           tdCap.textContent = TABLE_CAPACITY[tNo] + "人";
           tr.appendChild(tdCap);
   
-          // If there is reservation info for this table/time
-          const hasGroup = grouped[date] && grouped[date][timeKey] && grouped[date][timeKey][tNo];
-          if (hasGroup) {
+          const hasRes = grouped[date] && grouped[date][timeKey] && grouped[date][timeKey][tNo];
+          if (hasRes) {
             const info = grouped[date][timeKey][tNo];
   
-            // Determine the set of tables this reservation actually uses, in TABLES order
             const reservationTables = (info.tables || []).filter(x => TABLES.includes(x));
             const orderedResTables = TABLES.filter(t => reservationTables.includes(t));
   
-            // If current table tNo is the first among reservation's tables, render merged cells
-            const isFirstOfGroup = orderedResTables.length > 0 && orderedResTables[0] === tNo;
-  
-            if (isFirstOfGroup) {
+            const isFirst = orderedResTables.length > 0 && orderedResTables[0] === tNo;
+            if (isFirst) {
               const rowspan = Math.max(1, orderedResTables.length);
   
               // 大人
@@ -351,7 +343,7 @@
               tdNumA.style.verticalAlign = "middle";
               tr.appendChild(tdNumA);
   
-              // 子供
+              // 子ども
               const tdNumC = document.createElement("td");
               tdNumC.className = "childnum merged-cell";
               tdNumC.textContent = info.numChild;
@@ -375,7 +367,7 @@
               tdTel.style.verticalAlign = "middle";
               tr.appendChild(tdTel);
   
-              // 備考（結合して表示）
+              // 備考
               const tdNote = document.createElement("td");
               tdNote.className = "note-cell merged-cell";
               let noteStr = [];
@@ -388,7 +380,7 @@
               tdNote.style.textAlign = "center";
               tr.appendChild(tdNote);
   
-              // 操作（削除 / 変更）も結合セルに
+              // 操作
               const tdAct = document.createElement("td");
               tdAct.className = "action-cell merged-cell";
               tdAct.rowSpan = rowspan;
@@ -419,10 +411,9 @@
               tdAct.appendChild(editBtn);
               tr.appendChild(tdAct);
             }
-            // else: this table is part of a multi-table reservation but not the first;
-            // do NOT append the merged cells here (rowspan from first row covers them).
+            // if not first table of group then merged cells are omitted here
           } else {
-            // no reservation for this table/time -> render empty placeholder columns (6 columns)
+            // empty placeholders (columns count must match merged columns count)
             Array(6).fill(0).forEach(() => {
               const td = document.createElement("td");
               td.className = "empty";
@@ -438,7 +429,7 @@
         tableWrap.appendChild(table);
         area.appendChild(tableWrap);
       });
-    }
+    });
   }
 
   // 編集フォーム（人数と備考、名前・電話も編集可能）
