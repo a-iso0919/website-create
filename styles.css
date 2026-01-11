@@ -174,3 +174,16 @@ table tbody tr.no-divider td {
 table tbody tr:last-child td {
   /* border-bottom: 1px solid #e6d9bf; 既定のまま */
 }
+
+/* 追加または更新する部分：テーブル番号の太さ制御 */
+td.table-no {
+  /* 通常はやや細めにしておく（予約ありのときの見た目） */
+  font-weight: 400;
+}
+
+/* 空き（available）クラスが付いたテーブル番号は太字にする */
+td.table-no.available {
+  font-weight: 800; /* 太さは好きに調整してください */
+}
+
+/* 既存の no-divider / 行線スタイルがある前提でそのまま維持 */
