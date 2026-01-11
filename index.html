@@ -379,11 +379,11 @@
         const table = document.createElement("table");
         const thead = document.createElement("thead");
 
-        // ヘッダ：ディナーなら「コース」「追加」を含める
+        // ヘッダ：ディナーなら「コース」「中学生以下2000円」を含める
         if (timeKey === 'dinner') {
           thead.innerHTML =
             "<tr>" +
-              "<th>テーブル</th><th>キャパ</th><th>大人</th><th>子ども</th><th>名前</th><th>電話番号</th><th>コース</th><th>追加</th><th>備考</th><th>操作</th>" +
+              "<th>テーブル</th><th>キャパ</th><th>大人</th><th>子ども</th><th>名前</th><th>電話番号</th><th>コース</th><th>中学生以下2000円</th><th>備考</th><th>操作</th>" +
             "</tr>";
         } else {
           thead.innerHTML =
@@ -452,7 +452,7 @@
               tdTel.style.verticalAlign = "middle";
               tr.appendChild(tdTel);
 
-              // ディナー時のみ：コース・追加列
+              // ディナー時のみ：コース・中学生以下2000円列
               if (timeKey === 'dinner') {
                 const tdCourse = document.createElement("td");
                 tdCourse.className = "course-cell merged-cell";
@@ -544,7 +544,7 @@
     });
   }
 
-  // ���集フォーム（ディナーなら course / extra を編集できるように拡張）
+  // 編集フォーム（ディナーなら course / extra を編集できるように拡張）
   function showEditForm(info, date, timeKey, tNo, selectedDate) {
     const area = document.getElementById("listArea");
     area.innerHTML = "";
