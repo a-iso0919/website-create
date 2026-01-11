@@ -265,7 +265,7 @@
       });
   }
   
-  // 予約一覧表
+  // --- drawTable 関数（空きテーブルを太字にする実装） ---
   function drawTable(res, selectedDate) {
     const area = document.getElementById("listArea");
     area.innerHTML = "";
@@ -273,7 +273,7 @@
       area.innerHTML = "<div style='color:#aaa;padding:14px;'>予約はありません</div>";
       return;
     }
-  
+
     // grouped[date][time][tableNo] = info
     const grouped = {};
     res.forEach((r, idx) => {
@@ -287,20 +287,20 @@
         };
       });
     });
-  
+
     const dates = Object.keys(grouped).sort().filter(d => !selectedDate || d === selectedDate);
     dates.forEach(date => {
       const dateTitle = document.createElement("div");
       dateTitle.className = "date-title";
       dateTitle.textContent = date;
       area.appendChild(dateTitle);
-  
+
       TIMES.forEach(({ key: timeKey, label }) => {
         const title = document.createElement("div");
         title.className = "group-title";
         title.textContent = "■" + label;
         area.appendChild(title);
-  
+
         const tableWrap = document.createElement("div");
         tableWrap.className = "scroll-table";
         const table = document.createElement("table");
@@ -311,31 +311,36 @@
           "</tr>";
         table.appendChild(thead);
         const tbody = document.createElement("tbody");
-  
+
         TABLES.forEach((tNo, tIndex) => {
           const tr = document.createElement("tr");
-  
+
+          // 判定を先に行う（この行に予約があるか）
+          const hasRes = grouped[date] && grouped[date][timeKey] && grouped[date][timeKey][tNo];
+
+          // テーブル番号セル（空きなら available クラスを付与）
           const tdNo = document.createElement("td");
           tdNo.className = "table-no";
           tdNo.textContent = tNo;
+          if (!hasRes) tdNo.classList.add('available'); // 空きは太字
           tr.appendChild(tdNo);
-  
+
+          // キャパセル
           const tdCap = document.createElement("td");
           tdCap.className = "cap-cell";
           tdCap.textContent = TABLE_CAPACITY[tNo] + "人";
           tr.appendChild(tdCap);
-  
-          const hasRes = grouped[date] && grouped[date][timeKey] && grouped[date][timeKey][tNo];
+
           if (hasRes) {
             const info = grouped[date][timeKey][tNo];
-  
+
             const reservationTables = (info.tables || []).filter(x => TABLES.includes(x));
             const orderedResTables = TABLES.filter(t => reservationTables.includes(t));
-  
             const isFirst = orderedResTables.length > 0 && orderedResTables[0] === tNo;
+
             if (isFirst) {
               const rowspan = Math.max(1, orderedResTables.length);
-  
+
               // 大人
               const tdNumA = document.createElement("td");
               tdNumA.className = "num merged-cell";
@@ -343,7 +348,7 @@
               tdNumA.rowSpan = rowspan;
               tdNumA.style.verticalAlign = "middle";
               tr.appendChild(tdNumA);
-  
+
               // 子ども
               const tdNumC = document.createElement("td");
               tdNumC.className = "childnum merged-cell";
@@ -351,7 +356,7 @@
               tdNumC.rowSpan = rowspan;
               tdNumC.style.verticalAlign = "middle";
               tr.appendChild(tdNumC);
-  
+
               // 名前
               const tdName = document.createElement("td");
               tdName.className = "reserved merged-cell";
@@ -359,7 +364,7 @@
               tdName.rowSpan = rowspan;
               tdName.style.verticalAlign = "middle";
               tr.appendChild(tdName);
-  
+
               // 電話
               const tdTel = document.createElement("td");
               tdTel.className = "phone merged-cell";
@@ -367,7 +372,7 @@
               tdTel.rowSpan = rowspan;
               tdTel.style.verticalAlign = "middle";
               tr.appendChild(tdTel);
-  
+
               // 備考
               const tdNote = document.createElement("td");
               tdNote.className = "note-cell merged-cell";
@@ -380,14 +385,14 @@
               tdNote.style.verticalAlign = "middle";
               tdNote.style.textAlign = "center";
               tr.appendChild(tdNote);
-  
+
               // 操作
               const tdAct = document.createElement("td");
               tdAct.className = "action-cell merged-cell";
               tdAct.rowSpan = rowspan;
               tdAct.style.verticalAlign = "middle";
               tdAct.style.textAlign = "center";
-  
+
               const removeBtn = document.createElement("button");
               removeBtn.className = "act-btn";
               removeBtn.textContent = "削除";
@@ -401,19 +406,20 @@
                   }
                 }
               };
-  
+
               const editBtn = document.createElement("button");
               editBtn.className = "act-btn";
               editBtn.textContent = "変更";
               editBtn.style.marginLeft = "8px";
               editBtn.onclick = () => { showEditForm(info, date, timeKey, tNo, selectedDate); };
-  
+
               tdAct.appendChild(removeBtn);
               tdAct.appendChild(editBtn);
               tr.appendChild(tdAct);
             }
+            // 非先頭の結合行では merged 列は追加しない（先頭の rowspan でカバー）
           } else {
-            // 空セルを並べる（既存の未予約行と同様）
+            // 空セル（未予約）
             Array(6).fill(0).forEach(() => {
               const td = document.createElement("td");
               td.className = "empty";
@@ -421,22 +427,19 @@
               tr.appendChild(td);
             });
           }
-  
-          // --- ここで next row が同一予約かを判定して区切り線を消す ---
-          // next table name
+
+          // 横線の制御（同一予約で隣接する行は区切り線を消す処理） — 既存ロジックを保つ
           const nextTable = TABLES[tIndex + 1];
           if (hasRes && nextTable) {
             const nextInfo = grouped[date] && grouped[date][timeKey] && grouped[date][timeKey][nextTable];
             if (nextInfo && nextInfo._id === grouped[date][timeKey][tNo]._id) {
-              // next row belongs to same reservation -> remove divider between them
               tr.classList.add('no-divider');
             }
           }
-          // ---------------------------------------------------------
-  
+
           tbody.appendChild(tr);
         });
-  
+
         table.appendChild(tbody);
         tableWrap.appendChild(table);
         area.appendChild(tableWrap);
