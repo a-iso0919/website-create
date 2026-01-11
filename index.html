@@ -7,7 +7,7 @@
   <!-- Google Fonts -->
   <link href="https://fonts.googleapis.com/css2?family=Zen+Kurenaido&family=Montserrat:wght@500;700;800;900&display=swap" rel="stylesheet">
   <!-- External stylesheet -->
-  <link rel="stylesheet" href="styles.css?v=1.0">
+  <link rel="stylesheet" href="styles.css?v=1.3">
   <!-- Firebase setup (compat) -->
   <script src="https://www.gstatic.com/firebasejs/10.10.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.10.0/firebase-firestore-compat.js"></script>
@@ -38,6 +38,40 @@
         <div class="time-choices" id="timeChoices" aria-label="時間帯選択"></div>
         <input type="hidden" id="time" required>
       </label>
+
+      <!-- ここからディナー専用オプション（初期は非表示） -->
+      <div id="dinnerOptions" style="display:none; grid-column: 1/-1;">
+        <fieldset style="border-radius:10px;padding:10px;background:#fff7ea;border:1px solid #efdfc0;">
+          <legend style="font-weight:700;color:#6b4423">ディナー追加オプション</legend>
+
+          <label style="margin-bottom:8px;">
+            コース選択:
+            <select id="dinnerCourse">
+              <option value="">（コースなし）</option>
+              <option value="洋3000">洋3000円</option>
+              <option value="洋4000">洋4000円</option>
+              <option value="洋5000">洋5000円</option>
+              <option value="和3000">和3000円</option>
+              <option value="和4000">和4000円</option>
+              <option value="和5000">和5000円</option>
+            </select>
+          </label>
+
+          <div style="display:flex;align-items:center;gap:12px;">
+            <div style="flex:1">
+              <div style="font-weight:600;color:#6b4423">2000円（中学生以下のみ）</div>
+              <div style="font-size:0.9em;color:#6b4423">※該当人数分を選択してください</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px;">
+              <button type="button" id="extraMinus" class="act-btn" style="padding:6px 10px;">−</button>
+              <div id="extraCount" style="min-width:36px;text-align:center;font-weight:700">0</div>
+              <button type="button" id="extraPlus" class="act-btn" style="padding:6px 10px;">＋</button>
+            </div>
+          </div>
+        </fieldset>
+      </div>
+      <!-- ディナー専用オプション ここまで -->
+
       <label>
         名前（カタカナのみ）:
         <input type="text" id="name" pattern="^[ァ-ヴー]+$" placeholder="例：カトウ">
@@ -61,7 +95,7 @@
   </div>
 
 <script>
-  // --- Firebase 設定（コンソールの Web アプリ設定に合わせてください）
+  // --- Firebase 設定（省略せず既存と同じ） ---
   const firebaseConfig = {
     apiKey: "AIzaSyCIjAeYqS2Bbw60qU6ZUn2q04TlMFD5fdg",
     authDomain: "website-create-shimizunomori.firebaseapp.com",
@@ -75,11 +109,9 @@
   const db = firebase.firestore();
   const RES_COLLECTION = "shimizu_cafe_reservations";
 
-  // --- 認証チェック: 未認証なら login.html にリダイレクト
+  // --- 認証チェック（既存） ---
   firebase.auth().onAuthStateChanged(user => {
     if (user) {
-      console.log('Signed in:', user.uid, user.email || '(no email)');
-      // 初期表示・取得はここで開始
       renderTableChoices();
       renderTimeChoices();
       renderList();
@@ -88,7 +120,6 @@
     }
   });
 
-  // テーブル定義
   const TABLE_CAPACITY = {"T1":4,"T2":4,"T4":2,"T5":2,"T6":2,"T7":2,"T8":2,"T9":2,"T10":2};
   const TABLES = Object.keys(TABLE_CAPACITY);
   const TIMES = [
@@ -97,7 +128,7 @@
     { key: "dinner", label: "ディナー" }
   ];
 
-  // テーブルチェック生成
+  // テーブル選択描画（既存）
   function renderTableChoices(selected=[]) {
     const tc = document.getElementById("tableChoice");
     tc.innerHTML = "";
@@ -124,14 +155,13 @@
     });
   }
 
-  // 時間帯ラジオ風ボタン生成（改良版：hover/フォーカスの誤反応を防ぐ）
+  // 時間帯ボタン描画（選択時にディナーオプションを切り替え）
   let selectedTime = "";
   function renderTimeChoices(initKey="") {
     const tc = document.getElementById("timeChoices");
     if (!tc) return;
     tc.innerHTML = "";
 
-    // 初期値がある場合は反映（initKey 優先）
     if (initKey && TIMES.some(x => x.key === initKey)) {
       selectedTime = initKey;
       const hidden = document.getElementById("time");
@@ -144,11 +174,8 @@
       btn.className = "time-radio";
       btn.setAttribute("data-time", t.key);
       btn.textContent = t.label;
-
-      // 選択済みの反映
       if (t.key === selectedTime) btn.classList.add("selected");
 
-      // クリック時：再描画しない（クラスの付け替えのみ）
       btn.addEventListener("click", (ev) => {
         ev.stopPropagation();
         const prev = tc.querySelector(".time-radio.selected");
@@ -157,15 +184,52 @@
         selectedTime = t.key;
         const hidden = document.getElementById("time");
         if (hidden) hidden.value = t.key;
+        updateDinnerOptionsVisibility();
       });
-
-      // hover 表示は JS で hover クラスを付け外し（重なりで誤反応するケースを軽減）
-      btn.addEventListener("mouseenter", () => btn.classList.add("hover"));
-      btn.addEventListener("mouseleave", () => btn.classList.remove("hover"));
 
       tc.appendChild(btn);
     });
+
+    // reflect initial visibility
+    updateDinnerOptionsVisibility();
   }
+
+  // ディナーオプションの表示・活性化制御
+  function updateDinnerOptionsVisibility() {
+    const container = document.getElementById("dinnerOptions");
+    const select = document.getElementById("dinnerCourse");
+    const extraCountEl = document.getElementById("extraCount");
+    const plus = document.getElementById("extraPlus");
+    const minus = document.getElementById("extraMinus");
+    if (!container) return;
+    if (selectedTime === 'dinner') {
+      container.style.display = 'block';
+      // enable controls
+      if (select) select.disabled = false;
+      if (plus) plus.disabled = false;
+      if (minus) minus.disabled = false;
+    } else {
+      // hide and reset
+      container.style.display = 'none';
+      if (select) { select.value = ""; select.disabled = true; }
+      if (extraCountEl) extraCountEl.textContent = '0';
+      if (plus) plus.disabled = true;
+      if (minus) minus.disabled = true;
+    }
+  }
+
+  // extra +/- handlers
+  document.addEventListener('click', function(e){
+    if (e.target && e.target.id === 'extraPlus') {
+      const el = document.getElementById('extraCount');
+      let v = parseInt(el.textContent || '0', 10);
+      el.textContent = String(v + 1);
+    } else if (e.target && e.target.id === 'extraMinus') {
+      const el = document.getElementById('extraCount');
+      let v = parseInt(el.textContent || '0', 10);
+      if (v > 0) el.textContent = String(v - 1);
+    }
+  });
 
   // 日付選択で一覧も絞り込み
   let selectedDateVal = "";
@@ -174,7 +238,7 @@
     renderList(selectedDateVal);
   });
 
-  // 予約登録
+  // 予約登録（course, extraUnder15 を追加）
   document.getElementById("resForm").onsubmit = async function(e) {
     e.preventDefault();
     const date = document.getElementById("date").value;
@@ -188,6 +252,10 @@
     const note = document.getElementById("note").value.trim();
     const tables = [];
     document.querySelectorAll("input[name=tableNo]:checked").forEach(cb => tables.push(cb.value));
+
+    // ディナー追加データ
+    const course = document.getElementById("dinnerCourse") ? document.getElementById("dinnerCourse").value || null : null;
+    const extraUnder15 = document.getElementById("extraCount") ? parseInt(document.getElementById("extraCount").textContent || '0', 10) : 0;
 
     // 必須項目チェック
     if (!date || !time || numAdult==="" || numChild==="") {
@@ -226,10 +294,12 @@
       return;
     }
 
-    // 登録（エラー時にわかるように try/catch）
+    // 保存
     try {
       await db.collection(RES_COLLECTION).add({
         date, time, numAdult, numChild, tables, name, tel, childPlate, bdayPlate, note,
+        course: course || null,
+        extraUnder15: extraUnder15 || 0,
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
       });
     } catch (err) {
@@ -238,16 +308,20 @@
       return;
     }
 
+    // reset
     document.getElementById("resForm").reset();
     document.getElementById("time").value = "";
     selectedTime = "";
+    // reset dinner UI explicitly
+    updateDinnerOptionsVisibility();
+    document.getElementById("extraCount").textContent = '0';
     renderTableChoices();
     renderTimeChoices();
     selectedDateVal = date;
     renderList(selectedDateVal);
   };
 
-  // 一覧ライブ描画
+  // 一覧ライブ描画（drawTable を timeKey==='dinner' に対応）
   let unsubscribe = null;
   function renderList(selectedDate) {
     const area = document.getElementById("listArea");
@@ -264,8 +338,8 @@
         area.innerHTML = "<div style='color:#a00;padding:14px;'>データの読み込みに失敗しました: "+(err.message||err)+"</div>";
       });
   }
-  
-  // --- drawTable 関数（空きテーブルを太字にする実装） ---
+
+  // drawTable: dinner 時に「コース」「追加」列を表示するロジック
   function drawTable(res, selectedDate) {
     const area = document.getElementById("listArea");
     area.innerHTML = "";
@@ -274,7 +348,6 @@
       return;
     }
 
-    // grouped[date][time][tableNo] = info
     const grouped = {};
     res.forEach((r, idx) => {
       (r.tables || []).forEach(tableNo => {
@@ -283,6 +356,7 @@
         grouped[r.date][r.time][tableNo] = {
           numAdult: r.numAdult, numChild: r.numChild, name: r.name, tel: r.tel,
           childPlate: r.childPlate, bdayPlate: r.bdayPlate, note: r.note,
+          course: r.course || null, extraUnder15: r.extraUnder15 || 0,
           _id: r._id, index: idx, tables: r.tables
         };
       });
@@ -301,31 +375,38 @@
         title.textContent = "■" + label;
         area.appendChild(title);
 
-        const tableWrap = document.createElement("div");
-        tableWrap.className = "scroll-table";
+        const tableWrap = document.createElement("div"); tableWrap.className = "scroll-table";
         const table = document.createElement("table");
         const thead = document.createElement("thead");
-        thead.innerHTML =
-          "<tr>" +
-            "<th>テーブル</th><th>キャパ</th><th>大人</th><th>子ども</th><th>名前</th><th>電話番号</th><th>備考</th><th>操作</th>" +
-          "</tr>";
+
+        // ヘッダ：ディナーなら「コース」「追加」を含める
+        if (timeKey === 'dinner') {
+          thead.innerHTML =
+            "<tr>" +
+              "<th>テーブル</th><th>キャパ</th><th>大人</th><th>子ども</th><th>名前</th><th>電話番号</th><th>コース</th><th>追加</th><th>備考</th><th>操作</th>" +
+            "</tr>";
+        } else {
+          thead.innerHTML =
+            "<tr>" +
+              "<th>テーブル</th><th>キャパ</th><th>大人</th><th>子ども</th><th>名前</th><th>電話番号</th><th>備考</th><th>操作</th>" +
+            "</tr>";
+        }
+
         table.appendChild(thead);
         const tbody = document.createElement("tbody");
 
         TABLES.forEach((tNo, tIndex) => {
           const tr = document.createElement("tr");
 
-          // 判定を先に行う（この行に予約があるか）
-          const hasRes = grouped[date] && grouped[date][timeKey] && grouped[date][timeKey][tNo];
-
-          // テーブル番号セル（空きなら available クラスを付与）
+          // table no
           const tdNo = document.createElement("td");
           tdNo.className = "table-no";
           tdNo.textContent = tNo;
-          if (!hasRes) tdNo.classList.add('available'); // 空きは太字
+          // available marking
+          const hasRes = grouped[date] && grouped[date][timeKey] && grouped[date][timeKey][tNo];
+          if (!hasRes) tdNo.classList.add('available');
           tr.appendChild(tdNo);
 
-          // キャパセル
           const tdCap = document.createElement("td");
           tdCap.className = "cap-cell";
           tdCap.textContent = TABLE_CAPACITY[tNo] + "人";
@@ -333,11 +414,9 @@
 
           if (hasRes) {
             const info = grouped[date][timeKey][tNo];
-
             const reservationTables = (info.tables || []).filter(x => TABLES.includes(x));
             const orderedResTables = TABLES.filter(t => reservationTables.includes(t));
             const isFirst = orderedResTables.length > 0 && orderedResTables[0] === tNo;
-
             if (isFirst) {
               const rowspan = Math.max(1, orderedResTables.length);
 
@@ -372,6 +451,25 @@
               tdTel.rowSpan = rowspan;
               tdTel.style.verticalAlign = "middle";
               tr.appendChild(tdTel);
+
+              // ディナー時のみ：コース・追加列
+              if (timeKey === 'dinner') {
+                const tdCourse = document.createElement("td");
+                tdCourse.className = "course-cell merged-cell";
+                tdCourse.textContent = info.course || "";
+                tdCourse.rowSpan = rowspan;
+                tdCourse.style.verticalAlign = "middle";
+                tdCourse.style.textAlign = "center";
+                tr.appendChild(tdCourse);
+
+                const tdExtra = document.createElement("td");
+                tdExtra.className = "extra-cell merged-cell";
+                tdExtra.textContent = (info.extraUnder15 && info.extraUnder15 > 0) ? `${info.extraUnder15}名` : "";
+                tdExtra.rowSpan = rowspan;
+                tdExtra.style.verticalAlign = "middle";
+                tdExtra.style.textAlign = "center";
+                tr.appendChild(tdExtra);
+              }
 
               // 備考
               const tdNote = document.createElement("td");
@@ -417,10 +515,9 @@
               tdAct.appendChild(editBtn);
               tr.appendChild(tdAct);
             }
-            // 非先頭の結合行では merged 列は追加しない（先頭の rowspan でカバー）
           } else {
-            // 空セル（未予約）
-            Array(6).fill(0).forEach(() => {
+            // 空セル
+            Array(6 + (timeKey === 'dinner' ? 2 : 0)).fill(0).forEach(() => {
               const td = document.createElement("td");
               td.className = "empty";
               td.textContent = '';
@@ -428,7 +525,7 @@
             });
           }
 
-          // 横線の制御（同一予約で隣接する行は区切り線を消す処理） — 既存ロジックを保つ
+          // 横線制御（既存ロジック）
           const nextTable = TABLES[tIndex + 1];
           if (hasRes && nextTable) {
             const nextInfo = grouped[date] && grouped[date][timeKey] && grouped[date][timeKey][nextTable];
@@ -447,18 +544,22 @@
     });
   }
 
-  // 編集フォーム（人数と備考、名前・電話も編集可能）
+  // ���集フォーム（ディナーなら course / extra を編集できるように拡張）
   function showEditForm(info, date, timeKey, tNo, selectedDate) {
     const area = document.getElementById("listArea");
     area.innerHTML = "";
     const editDiv = document.createElement("div");
     editDiv.className = "edit-form";
+
+    const courseValue = info.course || "";
+    const extraValue = info.extraUnder15 || 0;
+
     editDiv.innerHTML = `
       <h3 style="margin:7px 0 13px 7px;font-size:1.02em;color:#a77f50">
         変更（${date} ${tNo} ${timeKey}）
       </h3>
 
-      <label>名前（カタカナのみ）：
+      <label>名前：
         <input type="text" id="editName" value="${info.name || ''}" placeholder="例：カトウ">
       </label>
 
@@ -469,7 +570,6 @@
       <label>大人人数：
         <input type="number" id="editNumA" value="${info.numAdult}" min="0" max="10" required>
       </label>
-
       <label>子ども人数：
         <input type="number" id="editNumC" value="${info.numChild}" min="0" max="10" required>
       </label>
@@ -478,6 +578,28 @@
         <label><input type="checkbox" id="editChildPlate" ${info.childPlate ? "checked" : ""}>お子様プレート</label>
         <label><input type="checkbox" id="editBdayPlate" ${info.bdayPlate ? "checked" : ""}>誕生日プレート</label>
       </div>
+
+      ${timeKey === 'dinner' ? `
+      <label>コース:
+        <select id="editCourse">
+          <option value="">（コースなし）</option>
+          <option value="洋3000" ${courseValue==='洋3000' ? 'selected' : ''}>洋3000円</option>
+          <option value="洋4000" ${courseValue==='洋4000' ? 'selected' : ''}>洋4000円</option>
+          <option value="洋5000" ${courseValue==='洋5000' ? 'selected' : ''}>洋5000円</option>
+          <option value="和3000" ${courseValue==='和3000' ? 'selected' : ''}>和3000円</option>
+          <option value="和4000" ${courseValue==='和4000' ? 'selected' : ''}>和4000円</option>
+          <option value="和5000" ${courseValue==='和5000' ? 'selected' : ''}>和5000円</option>
+        </select>
+      </label>
+
+      <label>2000円（中学生以下のみ）:
+        <div style="display:flex;align-items:center;gap:8px;">
+          <button type="button" class="act-btn" id="editExtraMinus">−</button>
+          <div id="editExtraCount" style="min-width:36px;text-align:center;font-weight:700">${extraValue}</div>
+          <button type="button" class="act-btn" id="editExtraPlus">＋</button>
+        </div>
+      </label>
+      ` : ``}
 
       <label>その他（自由記入）:
         <textarea id="editNote">${info.note || ""}</textarea>
@@ -488,9 +610,22 @@
         <button class="act-btn" id="cancelEditBtn">キャンセル</button>
       </div>
     `;
+
     area.appendChild(editDiv);
 
-    // 保存ボタン処理
+    // 編集画面の extra +/- ハンドラ
+    if (timeKey === 'dinner') {
+      document.getElementById('editExtraPlus').onclick = () => {
+        const el = document.getElementById('editExtraCount');
+        el.textContent = String(parseInt(el.textContent||'0',10) + 1);
+      };
+      document.getElementById('editExtraMinus').onclick = () => {
+        const el = document.getElementById('editExtraCount');
+        const v = parseInt(el.textContent||'0',10);
+        if (v > 0) el.textContent = String(v - 1);
+      };
+    }
+
     document.getElementById("saveEditBtn").onclick = async () => {
       const editName = document.getElementById("editName").value.trim();
       const editTel = document.getElementById("editTel").value.trim();
@@ -499,20 +634,12 @@
       const editChildPlate = document.getElementById("editChildPlate").checked;
       const editBdayPlate = document.getElementById("editBdayPlate").checked;
       const editNote = document.getElementById("editNote").value.trim();
+      const editCourse = timeKey === 'dinner' ? (document.getElementById("editCourse").value || null) : null;
+      const editExtra = timeKey === 'dinner' ? parseInt(document.getElementById("editExtraCount").textContent||'0',10) : 0;
 
-      // バリデーション
-      if (editNumA === "" || editNumC === "") {
-        alert("人数入力必須です");
-        return;
-      }
-      if (editName && !(/^[ァ-ヴー]+$/.test(editName))) {
-        alert("名前はカタカナのみで入力してください");
-        return;
-      }
-      if (editTel && !(/^[0-9]+$/.test(editTel))) {
-        alert("電話番号は数字のみで入力してください");
-        return;
-      }
+      if (editNumA === "" || editNumC === "") { alert("人数入力必須です"); return; }
+      if (editName && !(/^[ァ-ヴー]+$/.test(editName))) { alert("名前はカタカナのみで入力してください"); return; }
+      if (editTel && !(/^[0-9]+$/.test(editTel))) { alert("電話番号は数字のみで入力してください"); return; }
 
       try {
         await db.collection(RES_COLLECTION).doc(info._id).update({
@@ -522,7 +649,9 @@
           numChild: editNumC,
           childPlate: editChildPlate,
           bdayPlate: editBdayPlate,
-          note: editNote
+          note: editNote,
+          course: editCourse || null,
+          extraUnder15: editExtra || 0
         });
       } catch (err) {
         console.error('Update failed', err);
@@ -531,8 +660,7 @@
       renderList(selectedDate);
     };
 
-    // キャンセル
-    document.getElementById("cancelEditBtn").onclick = () => renderList(selectedDate);
+    document.getElementById("cancelEditBtn").onclick = ()=>renderList(selectedDate);
   }
 </script>
 </body>
