@@ -86,28 +86,36 @@ textarea{min-height:32px;max-height:88px;resize:vertical;margin-top:5px}
   display:inline-flex;
   align-items:center;
   justify-content:center;
-  min-width:88px;
-  padding:7px 16px 7px 12px;
+  min-width:92px;
+  padding:9px 16px;
   border-radius:16px;
   font-size:1.01rem;
   font-weight:500;
   cursor:pointer;
-  transition: background .13s, transform .08s, filter .08s;
+  transition: background .13s, box-shadow .12s;
   color:var(--text-dark);
   border:1px solid rgba(0,0,0,0.04);
   background:#eed8b0;
-  margin:2px;
+  margin:6px;            /* 広めの余白にして重なりを防ぐ */
+  position:relative;
+  z-index:1;             /* 隣と重なっても pointer を確実に得る */
+  box-shadow: none;
 }
 .time-radio.selected{
   background:var(--accent);
   color:#fff;
   font-weight:700;
   border-color:#795c31;
+  box-shadow: 0 6px 18px rgba(107,68,35,0.18);
 }
-.time-radio.hover { filter: brightness(0.96); transform: translateY(-1px); }
+.time-radio:hover{
+  /* hoverでは移動させない（transform を使わない）*/
+  box-shadow: 0 8px 20px rgba(0,0,0,0.06);
+  filter: none;
+}
 
 /* ensure buttons don't overlap and capture pointer correctly */
-.time-choices .time-radio { position: relative; z-index: 0; }
+.time-choices .time-radio { pointer-events: auto; }
 
 /* checkboxes cluster */
 .checkboxes{ display:flex; gap:13px; margin:7px 0 0 0; align-items:center; flex-wrap:wrap; color:var(--text-dark); }
