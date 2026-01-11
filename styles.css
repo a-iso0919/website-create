@@ -181,9 +181,12 @@ td.table-no {
   font-weight: 400;
 }
 
-/* 空き（available）クラスが付いたテーブル番号は太字にする */
+/* 空きテーブルの強調：太字＋色＋フォントを上書き */
 td.table-no.available {
-  font-weight: 800; /* 太さは好きに調整してください */
+  font-family: "Montserrat", "Zen Kurenaido", system-ui, sans-serif !important;
+  font-weight: 900 !important; /* 900 を指定（ブラウザ上限） */
+  color: #231f20 !important;    /* より濃い色で視認性アップ */
+  font-size: 1.02rem !important;/* 必要なら少し拡大 */
 }
 
 /* 既存の no-divider / 行線スタイルがある前提でそのまま維持 */
