@@ -272,26 +272,36 @@
       area.innerHTML = "<div style='color:#aaa;padding:14px;'>予約はありません</div>";
       return;
     }
+  
+    // grouped[date][time][tableNo] = info
     const grouped = {};
     res.forEach((r, idx) => {
       (r.tables||[]).forEach(tableNo => {
-        if (!grouped[r.date]) grouped[r.date]={};
-        if (!grouped[r.date][r.time]) grouped[r.date][r.time]={};
-        grouped[r.date][r.time][tableNo]={
-          numAdult:r.numAdult, numChild:r.numChild, name:r.name, tel:r.tel,
-          childPlate:r.childPlate, bdayPlate:r.bdayPlate, note:r.note,
-          _id:r._id, index:idx, tables:r.tables
+        if (!grouped[r.date]) grouped[r.date] = {};
+        if (!grouped[r.date][r.time]) grouped[r.date][r.time] = {};
+        grouped[r.date][r.time][tableNo] = {
+          numAdult: r.numAdult, numChild: r.numChild, name: r.name, tel: r.tel,
+          childPlate: r.childPlate, bdayPlate: r.bdayPlate, note: r.note,
+          _id: r._id, index: idx, tables: r.tables
         };
       });
     });
-    const dates = Object.keys(grouped).sort().filter(date=>!selectedDate||date===selectedDate);
+  
+    const dates = Object.keys(grouped).sort().filter(date => !selectedDate || date === selectedDate);
     dates.forEach(date => {
-      const dateTitle = document.createElement("div"); dateTitle.className = "date-title"; dateTitle.textContent = date; area.appendChild(dateTitle);
-
-      TIMES.forEach(({key: timeKey, label}) => {
-        const title = document.createElement("div"); title.className = "group-title"; title.textContent = "■"+label; area.appendChild(title);
-
-        const tableWrap=document.createElement("div");tableWrap.className="scroll-table";
+      const dateTitle = document.createElement("div");
+      dateTitle.className = "date-title";
+      dateTitle.textContent = date;
+      area.appendChild(dateTitle);
+  
+      TIMES.forEach(({ key: timeKey, label }) => {
+        const title = document.createElement("div");
+        title.className = "group-title";
+        title.textContent = "■" + label;
+        area.appendChild(title);
+  
+        const tableWrap = document.createElement("div");
+        tableWrap.className = "scroll-table";
         const table = document.createElement("table");
         const thead = document.createElement("thead");
         thead.innerHTML =
@@ -300,52 +310,135 @@
           "</tr>";
         table.appendChild(thead);
         const tbody = document.createElement("tbody");
-
+  
+        // For each table row, either render empty row or a reservation row.
+        // When a reservation spans multiple tables, render the shared columns with rowspan
         TABLES.forEach(tNo => {
           const tr = document.createElement("tr");
-          const tdNo = document.createElement("td"); tdNo.className="table-no"; tdNo.textContent = tNo; tr.appendChild(tdNo);
-          const tdCap = document.createElement("td"); tdCap.className="cap-cell"; tdCap.textContent=TABLE_CAPACITY[tNo]+"人"; tr.appendChild(tdCap);
-
-          if (grouped[date][timeKey] && grouped[date][timeKey][tNo]) {
+  
+          // Table number cell
+          const tdNo = document.createElement("td");
+          tdNo.className = "table-no";
+          tdNo.textContent = tNo;
+          tr.appendChild(tdNo);
+  
+          // Capacity cell
+          const tdCap = document.createElement("td");
+          tdCap.className = "cap-cell";
+          tdCap.textContent = TABLE_CAPACITY[tNo] + "人";
+          tr.appendChild(tdCap);
+  
+          // If there is reservation info for this table/time
+          const hasGroup = grouped[date] && grouped[date][timeKey] && grouped[date][timeKey][tNo];
+          if (hasGroup) {
             const info = grouped[date][timeKey][tNo];
-            const tdNumA=document.createElement("td"); tdNumA.className="num"; tdNumA.textContent=info.numAdult; tr.appendChild(tdNumA);
-            const tdNumC=document.createElement("td"); tdNumC.className="childnum"; tdNumC.textContent=info.numChild; tr.appendChild(tdNumC);
-            const tdName=document.createElement("td"); tdName.className="reserved"; tdName.textContent=info.name || ''; tr.appendChild(tdName);
-            const tdTel=document.createElement("td"); tdTel.className="phone"; tdTel.textContent=info.tel || ''; tr.appendChild(tdTel);
-            const tdNote=document.createElement("td"); tdNote.className="note-cell";
-            let noteStr=[]; if(info.childPlate)noteStr.push("お子様プレート"); if(info.bdayPlate)noteStr.push("誕生日プレート"); if(info.note && info.note.trim()!=="")noteStr.push(info.note);
-            tdNote.textContent=noteStr.join("／"); tr.appendChild(tdNote);
-
-            const tdAct=document.createElement("td"); tdAct.className="action-cell";
-            const removeBtn=document.createElement("button");
-            removeBtn.className="act-btn"; removeBtn.textContent="削除";
-            removeBtn.onclick= async ()=>{
-              if(confirm("本当に削除してもよいですか？")) {
-                try {
-                  await db.collection(RES_COLLECTION).doc(info._id).delete();
-                } catch (err) {
-                  console.error('Delete failed', err);
-                  alert('削除に失敗しました: ' + (err.message || err));
+  
+            // Determine the set of tables this reservation actually uses, in TABLES order
+            const reservationTables = (info.tables || []).filter(x => TABLES.includes(x));
+            const orderedResTables = TABLES.filter(t => reservationTables.includes(t));
+  
+            // If current table tNo is the first among reservation's tables, render merged cells
+            const isFirstOfGroup = orderedResTables.length > 0 && orderedResTables[0] === tNo;
+  
+            if (isFirstOfGroup) {
+              const rowspan = Math.max(1, orderedResTables.length);
+  
+              // 大人
+              const tdNumA = document.createElement("td");
+              tdNumA.className = "num merged-cell";
+              tdNumA.textContent = info.numAdult;
+              tdNumA.rowSpan = rowspan;
+              tdNumA.style.verticalAlign = "middle";
+              tr.appendChild(tdNumA);
+  
+              // 子供
+              const tdNumC = document.createElement("td");
+              tdNumC.className = "childnum merged-cell";
+              tdNumC.textContent = info.numChild;
+              tdNumC.rowSpan = rowspan;
+              tdNumC.style.verticalAlign = "middle";
+              tr.appendChild(tdNumC);
+  
+              // 名前
+              const tdName = document.createElement("td");
+              tdName.className = "reserved merged-cell";
+              tdName.textContent = info.name || "";
+              tdName.rowSpan = rowspan;
+              tdName.style.verticalAlign = "middle";
+              tr.appendChild(tdName);
+  
+              // 電話
+              const tdTel = document.createElement("td");
+              tdTel.className = "phone merged-cell";
+              tdTel.textContent = info.tel || "";
+              tdTel.rowSpan = rowspan;
+              tdTel.style.verticalAlign = "middle";
+              tr.appendChild(tdTel);
+  
+              // 備考（結合して表示）
+              const tdNote = document.createElement("td");
+              tdNote.className = "note-cell merged-cell";
+              let noteStr = [];
+              if (info.childPlate) noteStr.push("お子様プレート");
+              if (info.bdayPlate) noteStr.push("誕生日プレート");
+              if (info.note && info.note.trim() !== "") noteStr.push(info.note);
+              tdNote.textContent = noteStr.join("／");
+              tdNote.rowSpan = rowspan;
+              tdNote.style.verticalAlign = "middle";
+              tdNote.style.textAlign = "center";
+              tr.appendChild(tdNote);
+  
+              // 操作（削除 / 変更）も結合セルに
+              const tdAct = document.createElement("td");
+              tdAct.className = "action-cell merged-cell";
+              tdAct.rowSpan = rowspan;
+              tdAct.style.verticalAlign = "middle";
+              tdAct.style.textAlign = "center";
+  
+              const removeBtn = document.createElement("button");
+              removeBtn.className = "act-btn";
+              removeBtn.textContent = "削除";
+              removeBtn.onclick = async () => {
+                if (confirm("本当に削除してもよいですか？")) {
+                  try {
+                    await db.collection(RES_COLLECTION).doc(info._id).delete();
+                  } catch (err) {
+                    console.error('Delete failed', err);
+                    alert('削除に失敗しました: ' + (err.message || err));
+                  }
                 }
-              }
-            };
-            const editBtn=document.createElement("button");
-            editBtn.className="act-btn"; editBtn.textContent="変更";
-            editBtn.onclick=()=>{ showEditForm(info, date, timeKey, tNo, selectedDate); };
-            tdAct.appendChild(removeBtn); tdAct.appendChild(editBtn);
-            tr.appendChild(tdAct);
+              };
+  
+              const editBtn = document.createElement("button");
+              editBtn.className = "act-btn";
+              editBtn.textContent = "変更";
+              editBtn.style.marginLeft = "8px";
+              editBtn.onclick = () => { showEditForm(info, date, timeKey, tNo, selectedDate); };
+  
+              tdAct.appendChild(removeBtn);
+              tdAct.appendChild(editBtn);
+              tr.appendChild(tdAct);
+            }
+            // else: this table is part of a multi-table reservation but not the first;
+            // do NOT append the merged cells here (rowspan from first row covers them).
           } else {
-            Array(6).fill(0).forEach(()=> {
-              const td = document.createElement("td"); td.className = "empty"; td.textContent = ''; tr.appendChild(td);
+            // no reservation for this table/time -> render empty placeholder columns (6 columns)
+            Array(6).fill(0).forEach(() => {
+              const td = document.createElement("td");
+              td.className = "empty";
+              td.textContent = '';
+              tr.appendChild(td);
             });
           }
+  
           tbody.appendChild(tr);
         });
+  
         table.appendChild(tbody);
         tableWrap.appendChild(table);
         area.appendChild(tableWrap);
       });
-    });
+    }
   }
 
   // 編集フォーム（人数と備考、名前・電話も編集可能）
