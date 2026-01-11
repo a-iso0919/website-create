@@ -35,7 +35,7 @@
       </label>
       <label style="grid-column: 1/-1;">
         時間帯:
-        <div class="time-choices" id="timeChoices"></div>
+        <div class="time-choices" id="timeChoices" aria-label="時間帯選択"></div>
         <input type="hidden" id="time" required>
       </label>
       <label>
@@ -124,14 +124,20 @@
     });
   }
 
-  // 時間帯ラジオ風ボタン生成（修正済み）
+  // 時間帯ラジオ風ボタン生成（改良版：hover/フォーカスの誤反応を防ぐ）
   let selectedTime = "";
   function renderTimeChoices(initKey="") {
     const tc = document.getElementById("timeChoices");
     if (!tc) return;
     tc.innerHTML = "";
 
-    // ボタンを <span> ではなく <button> で作成し、data-time 属性で値を保持します
+    // 初期値がある場合は反映（initKey 優先）
+    if (initKey && TIMES.some(x => x.key === initKey)) {
+      selectedTime = initKey;
+      const hidden = document.getElementById("time");
+      if (hidden) hidden.value = initKey;
+    }
+
     TIMES.forEach(t => {
       const btn = document.createElement("button");
       btn.type = "button";
@@ -139,33 +145,26 @@
       btn.setAttribute("data-time", t.key);
       btn.textContent = t.label;
 
-      // 初期選択の反映
-      if (t.key === selectedTime || t.key === initKey) {
-        btn.classList.add("selected");
-      }
+      // 選択済みの反映
+      if (t.key === selectedTime) btn.classList.add("selected");
 
-      btn.addEventListener("click", () => {
-        // 既選択の解除
-        tc.querySelectorAll(".time-radio.selected").forEach(el => el.classList.remove("selected"));
-        // 今回のボタンを選択状態にする
+      // クリック時：再描画しない（クラスの付け替えのみ）
+      btn.addEventListener("click", (ev) => {
+        ev.stopPropagation();
+        const prev = tc.querySelector(".time-radio.selected");
+        if (prev && prev !== btn) prev.classList.remove("selected");
         btn.classList.add("selected");
         selectedTime = t.key;
-        document.getElementById("time").value = t.key;
+        const hidden = document.getElementById("time");
+        if (hidden) hidden.value = t.key;
       });
+
+      // hover 表示は JS で hover クラスを付け外し（重なりで誤反応するケースを軽減）
+      btn.addEventListener("mouseenter", () => btn.classList.add("hover"));
+      btn.addEventListener("mouseleave", () => btn.classList.remove("hover"));
 
       tc.appendChild(btn);
     });
-
-    // initKey が渡された場合は隠し input と UI を同期しておく
-    if (initKey && TIMES.some(x => x.key === initKey)) {
-      selectedTime = initKey;
-      document.getElementById("time").value = initKey;
-      const target = tc.querySelector(`[data-time="${initKey}"]`);
-      if (target) {
-        tc.querySelectorAll(".time-radio.selected").forEach(el => el.classList.remove("selected"));
-        target.classList.add("selected");
-      }
-    }
   }
 
   // 日付選択で一覧も絞り込み
@@ -311,8 +310,8 @@
             const info = grouped[date][timeKey][tNo];
             const tdNumA=document.createElement("td"); tdNumA.className="num"; tdNumA.textContent=info.numAdult; tr.appendChild(tdNumA);
             const tdNumC=document.createElement("td"); tdNumC.className="childnum"; tdNumC.textContent=info.numChild; tr.appendChild(tdNumC);
-            const tdName=document.createElement("td"); tdName.className="reserved"; tdName.textContent=info.name; tr.appendChild(tdName);
-            const tdTel=document.createElement("td"); tdTel.className="phone"; tdTel.textContent=info.tel; tr.appendChild(tdTel);
+            const tdName=document.createElement("td"); tdName.className="reserved"; tdName.textContent=info.name || ''; tr.appendChild(tdName);
+            const tdTel=document.createElement("td"); tdTel.className="phone"; tdTel.textContent=info.tel || ''; tr.appendChild(tdTel);
             const tdNote=document.createElement("td"); tdNote.className="note-cell";
             let noteStr=[]; if(info.childPlate)noteStr.push("お子様プレート"); if(info.bdayPlate)noteStr.push("誕生日プレート"); if(info.note && info.note.trim()!=="")noteStr.push(info.note);
             tdNote.textContent=noteStr.join("／"); tr.appendChild(tdNote);
@@ -349,7 +348,7 @@
     });
   }
 
-  // 編集フォーム（人数と備考、名前・電話も編集可能に拡張）
+  // 編集フォーム（人数と備考、名前・電話も編集可能）
   function showEditForm(info, date, timeKey, tNo, selectedDate) {
     const area = document.getElementById("listArea");
     area.innerHTML = "";
@@ -391,6 +390,7 @@
       </div>
     `;
     area.appendChild(editDiv);
+
     // 保存ボタン処理
     document.getElementById("saveEditBtn").onclick = async () => {
       const editName = document.getElementById("editName").value.trim();
@@ -403,7 +403,7 @@
 
       // バリデーション
       if (editNumA === "" || editNumC === "") {
-        alert("人���入力必須です");
+        alert("人数入力必須です");
         return;
       }
       if (editName && !(/^[ァ-ヴー]+$/.test(editName))) {
@@ -414,6 +414,7 @@
         alert("電話番号は数字のみで入力してください");
         return;
       }
+
       try {
         await db.collection(RES_COLLECTION).doc(info._id).update({
           name: editName || null,
