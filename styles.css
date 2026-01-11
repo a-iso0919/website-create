@@ -189,4 +189,8 @@ td.table-no.available {
   font-size: 1.02rem !important;/* 必要なら少し拡大 */
 }
 
+/* ディナーオプションの見た目微調整 */
+#dinnerOptions fieldset { border-color:#efd3a4; }
+#dinnerOptions legend { font-size:0.98em; }
+
 /* 既存の no-divider / 行線スタイルがある前提でそのまま維持 */
