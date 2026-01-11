@@ -159,3 +159,18 @@ td.action-cell{ background:transparent; border:none; }
 
 /* merged cell styling */
 .merged-cell { vertical-align: middle; text-align: center; }
+
+/* 行ごとの横線（見やすい色・濃さ） */
+table tbody tr td {
+  border-bottom: 1px solid #e6d9bf; /* 例: 落ち着いたベージュ系の線 */
+}
+
+/* 同一予約で隣接する行は区切り線を消す */
+table tbody tr.no-divider td {
+  border-bottom: none;
+}
+
+/* 最後の行の下も少し余白が欲しければ調整（任意） */
+table tbody tr:last-child td {
+  /* border-bottom: 1px solid #e6d9bf; 既定のまま */
+}
