@@ -121,16 +121,16 @@
         
           <!-- 舟盛り（個数表示） -->
           <div class="extras-row">
-            <label class="extras-label">舟盛り（¥10,000〜）</label>
-            <div class="extras-control" data-type="amount" data-key="funamori">
+            <label class="extras-label">舟盛り（¥10,000から）</label>
+            <div class="extras-control" data-type="count" data-key="funamori">
               <button type="button" class="qty-btn" data-action="decrease" data-target="funamori">−</button>
               <div class="count-display" id="funamoriDisplay">0</div>
               <button type="button" class="qty-btn" data-action="increase" data-target="funamori">＋</button>
-              <input type="hidden" id="funamoriValue" name="funamoriAmount" value="0" />
+              <input type="hidden" id="funamoriValue" name="funamoriCount" value="0" />
             </div>
           </div>
         
-          <div id="extrasPricePreview" class="extras-price-preview">※舟盛り金額は以下自由記入欄に入力ください。</div>
+          <div id="extrasPricePreview" class="extras-price-preview">追加料金: ¥0</div>
         </div>
         <textarea id="note" placeholder="ご要望など自由記入"></textarea>
       </label>
@@ -342,12 +342,15 @@
 
     // 保存
     try {
-      await db.collection(RES_COLLECTION).add({
-        date, time, numAdult, numChild, tables, name, tel, childPlate, bdayPlate, note,
+      // マージする extras データがあれば取得して保存データに含める
+      const extras = (typeof getExtrasForSave === 'function') ? getExtrasForSave() : {};
+      await db.collection(RES_COLLECTION).add(Object.assign({
+        date, time, numAdult, numChild, tables, name, tel,
+        childPlate, bdayPlate, note,
         course: course || null,
         extraUnder15: extraUnder15 || 0,
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
-      });
+      }, extras));
     } catch (err) {
       console.error('Firestore add error', err);
       alert('予約登録に失敗しました: ' + (err.message || err));
@@ -361,6 +364,8 @@
     // reset dinner UI explicitly
     updateDinnerOptionsVisibility();
     document.getElementById("extraCount").textContent = '0';
+    // reset extras UI
+    if (typeof populateExtrasFromDoc === 'function') populateExtrasFromDoc({});
     renderTableChoices();
     renderTimeChoices();
     selectedDateVal = date;
@@ -418,6 +423,12 @@
           numAdult: r.numAdult, numChild: r.numChild, name: r.name, tel: r.tel,
           childPlate: r.childPlate, bdayPlate: r.bdayPlate, note: r.note,
           course: r.course || null, extraUnder15: r.extraUnder15 || 0,
+          // include new extras if present
+          childPlatePastaCount: r.childPlatePastaCount || 0,
+          childPlateHamburgerCount: r.childPlateHamburgerCount || 0,
+          birthdayPlateCount: r.birthdayPlateCount || 0,
+          funamoriCount: r.funamoriCount || r.funamoriAmount ? Math.round((r.funamoriAmount||0)/10000) : 0,
+          extrasTotal: r.extrasTotal || 0,
           _id: r._id, index: idx, tables: r.tables
         };
       });
@@ -538,6 +549,11 @@
               let noteStr = [];
               if (info.childPlate) noteStr.push("お子様プレート");
               if (info.bdayPlate) noteStr.push("誕生日プレート");
+              // include detailed extras if present
+              if (info.childPlatePastaCount && info.childPlatePastaCount > 0) noteStr.push(`パスタ x${info.childPlatePastaCount}`);
+              if (info.childPlateHamburgerCount && info.childPlateHamburgerCount > 0) noteStr.push(`ハンバーグ x${info.childPlateHamburgerCount}`);
+              if (info.birthdayPlateCount && info.birthdayPlateCount > 0) noteStr.push(`誕生日プレート x${info.birthdayPlateCount}`);
+              if ((info.funamoriCount || 0) > 0) noteStr.push(`舟盛り x${info.funamoriCount}`);
               if (info.note && info.note.trim() !== "") noteStr.push(info.note);
               tdNote.textContent = noteStr.join("／");
               tdNote.rowSpan = rowspan;
@@ -723,10 +739,11 @@
 
     document.getElementById("cancelEditBtn").onclick = ()=>renderList(selectedDate);
   }
+
+  // ---------- extras 用定数・ハンドラ（funamori はカウントのみ、合計に含めない） ----------
   const PRICE_CHILD_PLATE = 650;
   const PRICE_BIRTHDAY_PLATE = 1300;
-  const FUNAMORI_STEP = 1000;
-  const FUNAMORI_MIN = 10000;
+  // funamori は単価・合計に含めない（カウントのみ保存）
 
   function initExtrasHandlers() {
     // 共通クリックハンドラ（delegation）
@@ -734,36 +751,53 @@
       btn.addEventListener('click', (e) => {
         const action = btn.dataset.action;
         const target = btn.dataset.target;
+        if (action && target) {
+          // funamori は個数扱い（birthday と同様）
           handleCount(action, target);
-          }
         }
       });
     });
+
+    // 初期表示更新（表示は行わないが内部初期化のため呼ぶ）
+    updateExtrasPreview();
   }
 
-  // カウント操作（プレート類）
+  // カウント操作（プレート・舟盛り・誕生日）
   function handleCount(action, key) {
     const display = document.getElementById(key + 'Display');
     const input = document.getElementById(key + 'Value');
     let v = Number(input.value) || 0;
     const childNumEl = document.getElementById('childNum') || document.getElementById('numChild');
     const maxChildren = Math.max(0, Number(childNumEl?.value || 0));
-    // 合計上限を enforce（子ども人数を超えないようにする）
+
     if (action === 'increase') {
-      // increase only if total won't exceed maxChildren
-      const otherKey = (key === 'childPasta') ? 'childHamburger' : (key === 'childHamburger') ? 'childPasta' : null;
-      const otherVal = otherKey ? (Number(document.getElementById(otherKey + 'Value').value) || 0) : 0;
+      // birthday は max 1
       if (key === 'birthday') {
-        // birthday max 1
         if (v < 1) v++;
-      } else {
+      } else if (key === 'childPasta' || key === 'childHamburger') {
+        // 子ども向けプレートは合計が子ども人数を超えないようにする
+        const otherKey = (key === 'childPasta') ? 'childHamburger' : 'childPasta';
+        const otherVal = otherKey ? (Number(document.getElementById(otherKey + 'Value').value) || 0) : 0;
         if (maxChildren === 0 || (v + otherVal) < maxChildren) v++;
+      } else {
+        // funamori は個数制限なし（増加）
+        v++;
       }
     } else if (action === 'decrease') {
       v = Math.max(0, v - 1);
     }
+
     input.value = v;
-    display.textContent = String(v);
+    if (display) display.textContent = String(v);
+    updateExtrasPreview();
+  }
+
+  // 変更点：合計表示を行わない updateExtrasPreview（画面表示・合計反映を行わない）
+  function updateExtrasPreview() {
+    // 何も表示しない（空文字にする）
+    const previewEl = document.getElementById('extrasPricePreview');
+    if (previewEl) previewEl.textContent = '';
+    // recalcTotal は呼ばない（追加オプションを合計表示に反映させない）
   }
 
   // 保存時にこれを呼んで Firestore にマージするデータを取得
@@ -771,14 +805,13 @@
     const pasta = Number(document.getElementById('childPastaValue').value) || 0;
     const hamb = Number(document.getElementById('childHamburgerValue').value) || 0;
     const bday = Number(document.getElementById('birthdayValue').value) || 0;
-    const funa = Number(document.getElementById('funamoriValue').value) || 0;
-    const extrasTotal = (pasta + hamb) * PRICE_CHILD_PLATE + bday * PRICE_BIRTHDAY_PLATE + funa;
+    const funaCount = Number(document.getElementById('funamoriValue').value) || 0;
+    // extrasTotal は含めない（合計金額不要と指示のため）
     return {
       childPlatePastaCount: pasta,
       childPlateHamburgerCount: hamb,
       birthdayPlateCount: bday,
-      funamoriAmount: funa,
-      extrasTotal: extrasTotal,
+      funamoriCount: funaCount,
       extrasUnitPrices: { childPlateUnit: PRICE_CHILD_PLATE, birthdayPlateUnit: PRICE_BIRTHDAY_PLATE }
     };
   }
@@ -792,8 +825,13 @@
     document.getElementById('childHamburgerDisplay').textContent = String(d.childPlateHamburgerCount || 0);
     document.getElementById('birthdayValue').value = d.birthdayPlateCount || 0;
     document.getElementById('birthdayDisplay').textContent = String(d.birthdayPlateCount || 0);
-    document.getElementById('funamoriValue').value = d.funamoriAmount || 0;
-    document.getElementById('funamoriDisplay').textContent = '¥' + (Number(d.funamoriAmount || 0)).toLocaleString();
+
+    // funamori: カウント保存（legacy の funamoriAmount がある場合は無視してカウントを優先）
+    const funaCount = Number(d.funamoriCount || 0);
+    document.getElementById('funamoriValue').value = funaCount;
+    document.getElementById('funamoriDisplay').textContent = String(funaCount);
+
+    updateExtrasPreview();
   }
 
   // ページ読み込み時に初期化を呼ぶ（まだ呼んでいない場合）
