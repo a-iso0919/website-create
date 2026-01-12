@@ -193,7 +193,7 @@ td.table-no.available {
 #dinnerOptions fieldset { border-color:#efd3a4; }
 #dinnerOptions legend { font-size:0.98em; }
 
-/* 追加：備考（追加オプション）用スタイル */
+/* 追加：備考（追加オプション）横並び用スタイル（上書き可能） */
 .extras-section {
   margin-top: 14px;
   border-radius: 8px;
@@ -208,62 +208,78 @@ td.table-no.available {
   font-size: 1rem;
   font-weight: 600;
 }
+
+/* 横並び1行でラベル＋コントロール（コンパクト） */
 .extras-row {
   display: flex;
   align-items: center;
+  gap: 12px;
   margin: 6px 0;
-  gap: 8px;
+  flex-wrap: nowrap;
 }
 .extras-label {
-  flex: 1;
+  min-width: 170px; /* ラベル幅の目安 */
   color: #333;
-  min-width: 0;
+  font-size: 0.95rem;
+}
+
+/* 中央のコントロール（± と表示） */
+.extras-control {
+  display:flex;
+  align-items:center;
+  gap:8px;
+  background: #fff;
+  border-radius: 6px;
+  padding: 4px;
+  border: 1px solid #e9ddc7;
 }
 .qty-btn {
   background: transparent;
   border: 1px solid #e4d7bf;
   border-radius: 6px;
-  width: 36px;
+  width: 34px;
   height: 30px;
   font-size: 16px;
   line-height: 1;
   cursor: pointer;
   color: #6b4423;
 }
-.qty-btn:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-}
-.qty-input {
-  width: 56px;
+.qty-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.count-display {
+  min-width: 44px;
   text-align: center;
-  border-radius: 6px;
-  border: 1px solid #e4d7bf;
-  margin: 0 6px;
-  padding: 4px;
-  box-sizing: border-box;
+  font-weight: 700;
+  color: #231f20;
+  padding: 4px 6px;
+  border-radius: 4px;
+  background: transparent;
 }
-.funamori-input {
-  width: 140px;
+
+/* 舟盛り用金額表示（通貨形式） */
+.amount-display {
+  min-width: 100px;
   text-align: right;
-  border-radius: 6px;
-  border: 1px solid #e4d7bf;
-  margin-left: 8px;
-  padding-right: 6px;
-  box-sizing: border-box;
+  font-weight: 700;
+  color: #231f20;
+  padding: 4px 6px;
 }
+
+/* 補助説明 */
 .extras-note {
   color: #7a6650;
-  margin-left: 8px;
   font-size: 0.9rem;
 }
+
+/* 追加料金プレビュー */
 .extras-price-preview {
   margin-top: 10px;
   color: #6b4423;
   font-weight: 600;
 }
-@media (max-width: 520px) {
-  .extras-row { flex-direction: column; align-items: stretch; gap: 6px; }
-  .qty-input, .funamori-input { width: 100%; }
-  .qty-btn { width: 44px; }
+
+/* レスポンシブ：狭い画面では縦並びに */
+@media (max-width: 560px) {
+  .extras-row { flex-direction: column; align-items: stretch; gap: 8px; }
+  .extras-label { min-width: auto; }
+  .amount-display { text-align: right; }
 }
