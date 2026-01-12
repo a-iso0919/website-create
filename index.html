@@ -734,11 +734,7 @@
       btn.addEventListener('click', (e) => {
         const action = btn.dataset.action;
         const target = btn.dataset.target;
-        if (action && target) {
-          if (target === 'funamori') {
-            handleFunamori(action);
-          } else {
-            handleCount(action, target);
+          handleCount(action, target);
           }
         }
       });
