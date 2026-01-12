@@ -184,7 +184,7 @@ td.table-no {
 /* 空きテーブルの強調：太字＋色＋フォントを上書き */
 td.table-no.available {
   font-family: "Montserrat", "Zen Kurenaido", system-ui, sans-serif !important;
-  font-weight: 900 !important; /* 900 を指定（ブラウザ上限） */
+  font-weight: 750 !important; /* 750 を指定（ブラウザ上限は900） */
   color: #231f20 !important;    /* より濃い色で視認性アップ */
   font-size: 1.02rem !important;/* 必要なら少し拡大 */
 }
