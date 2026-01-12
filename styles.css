@@ -255,26 +255,10 @@ td.table-no.available {
   background: transparent;
 }
 
-/* 舟盛り用金額表示（通貨形式） */
-.amount-display {
-  min-width: 100px;
-  text-align: right;
-  font-weight: 700;
-  color: #231f20;
-  padding: 4px 6px;
-}
-
 /* 補助説明 */
 .extras-note {
   color: #7a6650;
   font-size: 0.9rem;
-}
-
-/* 追加料金プレビュー */
-.extras-price-preview {
-  margin-top: 10px;
-  color: #6b4423;
-  font-weight: 600;
 }
 
 /* レスポンシブ：狭い画面では縦並びに */
