@@ -652,6 +652,11 @@
         <input type="number" id="editNumC" value="${info.numChild}" min="0" max="10" required>
       </label>
 
+      <div class="edit-form-checks" style="margin-top:6px;">
+        <label style="margin-right:8px;"><input type="checkbox" id="editChildPlate" ${info.childPlate ? "checked" : ""}>お子様プレート</label>
+        <label><input type="checkbox" id="editBdayPlate" ${info.bdayPlate ? "checked" : ""}>誕生日プレート</label>
+      </div>
+
       ${timeKey === 'dinner' ? `
       <label style="margin-top:10px;">コース:
         <select id="editCourse">
@@ -801,16 +806,17 @@
     // save / cancel handlers
     document.getElementById('cancelEditBtn').onclick = () => renderList(selectedDate);
 
+    // --- SAVe: guarded element access to avoid null .checked errors ---
     document.getElementById('saveEditBtn').onclick = async () => {
-      const editName = document.getElementById("editName").value.trim();
-      const editTel = document.getElementById("editTel").value.trim();
-      const editNumA = document.getElementById("editNumA").value.trim();
-      const editNumC = document.getElementById("editNumC").value.trim();
-      const editChildPlate = document.getElementById("editChildPlate").checked;
-      const editBdayPlate = document.getElementById("editBdayPlate").checked;
-      const editNote = document.getElementById("editNote").value.trim();
-      const editCourse = timeKey === 'dinner' ? (document.getElementById("editCourse").value || null) : null;
-      const editExtra = timeKey === 'dinner' ? parseInt(document.getElementById("editExtraCount").textContent||'0',10) : 0;
+      const editName = document.getElementById("editName")?.value.trim() || "";
+      const editTel = document.getElementById("editTel")?.value.trim() || "";
+      const editNumA = document.getElementById("editNumA")?.value.trim() || "";
+      const editNumC = document.getElementById("editNumC")?.value.trim() || "";
+      const editChildPlate = document.getElementById("editChildPlate") ? document.getElementById("editChildPlate").checked : false;
+      const editBdayPlate = document.getElementById("editBdayPlate") ? document.getElementById("editBdayPlate").checked : false;
+      const editNote = document.getElementById("editNote")?.value.trim() || "";
+      const editCourse = (timeKey === 'dinner' && document.getElementById("editCourse")) ? (document.getElementById("editCourse").value || null) : null;
+      const editExtra = timeKey === 'dinner' ? parseInt(document.getElementById("editExtraCount")?.textContent||'0',10) : 0;
 
       if (editNumA === "" || editNumC === "") { alert("人数入力必須です"); return; }
       if (editName && !(/^[ァ-ヴー]+$/.test(editName))) { alert("名前はカタカナのみで入力してください"); return; }
@@ -821,11 +827,11 @@
       document.querySelectorAll("input[name=editTableNo]:checked").forEach(cb => tables.push(cb.value));
       if (tables.length === 0) { alert("テーブル番号を1つ以上選択してください"); return; }
 
-      // collect extras from edit fields
-      const eChildPasta = Number(document.getElementById('editChildPastaValue').value) || 0;
-      const eChildHamb = Number(document.getElementById('editChildHamburgerValue').value) || 0;
-      const eBday = Number(document.getElementById('editBirthdayValue').value) || 0;
-      const eFunamori = Number(document.getElementById('editFunamoriValue').value) || 0;
+      // collect extras from edit fields (guarded)
+      const eChildPasta = Number(document.getElementById('editChildPastaValue')?.value || 0);
+      const eChildHamb = Number(document.getElementById('editChildHamburgerValue')?.value || 0);
+      const eBday = Number(document.getElementById('editBirthdayValue')?.value || 0);
+      const eFunamori = Number(document.getElementById('editFunamoriValue')?.value || 0);
 
       try {
         await db.collection(RES_COLLECTION).doc(info._id).update({
