@@ -121,7 +121,7 @@
         
           <!-- 舟盛り（個数表示） -->
           <div class="extras-row">
-            <label class="extras-label">舟盛り（¥10,000から）</label>
+            <label class="extras-label">舟盛り（10000円から）</label>
             <div class="extras-control" data-type="count" data-key="funamori">
               <button type="button" class="qty-btn" data-action="decrease" data-target="funamori">−</button>
               <div class="count-display" id="funamoriDisplay">0</div>
@@ -130,7 +130,7 @@
             </div>
           </div>
         
-          <div id="extrasPricePreview" class="extras-price-preview">追加料金: ¥0</div>
+          <div id="extrasPricePreview" class="extras-price-preview"></div>
         </div>
         <textarea id="note" placeholder="ご要望など自由記入"></textarea>
       </label>
@@ -427,7 +427,7 @@
           childPlatePastaCount: r.childPlatePastaCount || 0,
           childPlateHamburgerCount: r.childPlateHamburgerCount || 0,
           birthdayPlateCount: r.birthdayPlateCount || 0,
-          funamoriCount: r.funamoriCount || r.funamoriAmount ? Math.round((r.funamoriAmount||0)/10000) : 0,
+          funamoriCount: r.funamoriCount || (r.funamoriAmount ? Math.round((r.funamoriAmount||0)/10000) : 0),
           extrasTotal: r.extrasTotal || 0,
           _id: r._id, index: idx, tables: r.tables
         };
@@ -621,7 +621,7 @@
     });
   }
 
-  // 編集フォーム（ディナーなら course / extra を編集できるように拡張）
+  // 編集フォーム（置換済み: 編集画面にテーブル選択と備考内オプションのカウントを追加）
   function showEditForm(info, date, timeKey, tNo, selectedDate) {
     const area = document.getElementById("listArea");
     area.innerHTML = "";
@@ -631,17 +631,18 @@
     const courseValue = info.course || "";
     const extraValue = info.extraUnder15 || 0;
 
+    // Build HTML: includes table-choice area and editable extras (edit-prefixed IDs)
     editDiv.innerHTML = `
       <h3 style="margin:7px 0 13px 7px;font-size:1.02em;color:#a77f50">
         変更（${date} ${tNo} ${timeKey}）
       </h3>
 
       <label>名前：
-        <input type="text" id="editName" value="${info.name || ''}" placeholder="例：カトウ">
+        <input type="text" id="editName" value="${(info.name||'').replace(/"/g,'&quot;')}" placeholder="例：カトウ">
       </label>
 
       <label>電話番号：
-        <input type="tel" id="editTel" value="${info.tel || ''}" placeholder="例：09012345678">
+        <input type="tel" id="editTel" value="${(info.tel||'').replace(/"/g,'&quot;')}" placeholder="例：09012345678">
       </label>
 
       <label>大人人数：
@@ -651,13 +652,13 @@
         <input type="number" id="editNumC" value="${info.numChild}" min="0" max="10" required>
       </label>
 
-      <div class="edit-form-checks">
-        <label><input type="checkbox" id="editChildPlate" ${info.childPlate ? "checked" : ""}>お子様プレート</label>
+      <div class="edit-form-checks" style="margin-top:6px;">
+        <label style="margin-right:8px;"><input type="checkbox" id="editChildPlate" ${info.childPlate ? "checked" : ""}>お子様プレート</label>
         <label><input type="checkbox" id="editBdayPlate" ${info.bdayPlate ? "checked" : ""}>誕生日プレート</label>
       </div>
 
       ${timeKey === 'dinner' ? `
-      <label>コース:
+      <label style="margin-top:10px;">コース:
         <select id="editCourse">
           <option value="">（コースなし）</option>
           <option value="洋3000" ${courseValue==='洋3000' ? 'selected' : ''}>洋3000円</option>
@@ -669,7 +670,7 @@
         </select>
       </label>
 
-      <label>2000円（中学生以下のみ）:
+      <label style="margin-top:8px;">2000円（中学生以下のみ）:
         <div style="display:flex;align-items:center;gap:8px;">
           <button type="button" class="act-btn" id="editExtraMinus">−</button>
           <div id="editExtraCount" style="min-width:36px;text-align:center;font-weight:700">${extraValue}</div>
@@ -678,8 +679,58 @@
       </label>
       ` : ``}
 
-      <label>その他（自由記入）:
-        <textarea id="editNote">${info.note || ""}</textarea>
+      <label style="display:block;margin-top:10px;">
+        テーブル（選択を変更できます）:
+        <div id="editTableChoice" style="margin-top:6px; display:flex; flex-wrap:wrap; gap:8px;"></div>
+      </label>
+
+      <fieldset style="border-radius:6px;padding:8px;margin-top:10px;border:1px solid #ddd;">
+        <legend style="font-weight:700">備考</legend>
+
+        <div style="display:flex;gap:12px;align-items:center;margin-bottom:8px;">
+          <label style="min-width:150px;">お子様プレート（パスタ） ¥650</label>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <button type="button" class="act-btn edit-qty-btn" data-action="decrease" data-target="editChildPasta">−</button>
+            <div id="editChildPastaDisplay" style="min-width:44px;text-align:center;font-weight:700">0</div>
+            <button type="button" class="act-btn edit-qty-btn" data-action="increase" data-target="editChildPasta">＋</button>
+            <input type="hidden" id="editChildPastaValue" />
+          </div>
+        </div>
+
+        <div style="display:flex;gap:12px;align-items:center;margin-bottom:8px;">
+          <label style="min-width:150px;">お子様プレート（ハンバーグ） ¥650</label>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <button type="button" class="act-btn edit-qty-btn" data-action="decrease" data-target="editChildHamburger">−</button>
+            <div id="editChildHamburgerDisplay" style="min-width:44px;text-align:center;font-weight:700">0</div>
+            <button type="button" class="act-btn edit-qty-btn" data-action="increase" data-target="editChildHamburger">＋</button>
+            <input type="hidden" id="editChildHamburgerValue" />
+          </div>
+        </div>
+
+        <div style="display:flex;gap:12px;align-items:center;margin-bottom:8px;">
+          <label style="min-width:150px;">誕生日プレート ¥1,300</label>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <button type="button" class="act-btn edit-qty-btn" data-action="decrease" data-target="editBirthday">−</button>
+            <div id="editBirthdayDisplay" style="min-width:44px;text-align:center;font-weight:700">0</div>
+            <button type="button" class="act-btn edit-qty-btn" data-action="increase" data-target="editBirthday">＋</button>
+            <input type="hidden" id="editBirthdayValue" />
+          </div>
+        </div>
+
+        <div style="display:flex;gap:12px;align-items:center;margin-bottom:8px;">
+          <label style="min-width:150px;">舟盛り（10000円から）</label>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <button type="button" class="act-btn edit-qty-btn" data-action="decrease" data-target="editFunamori">−</button>
+            <div id="editFunamoriDisplay" style="min-width:44px;text-align:center;font-weight:700">0</div>
+            <button type="button" class="act-btn edit-qty-btn" data-action="increase" data-target="editFunamori">＋</button>
+            <input type="hidden" id="editFunamoriValue" />
+          </div>
+        </div>
+
+      </fieldset>
+
+      <label style="display:block;margin-top:8px;">その他（自由記入）:
+        <textarea id="editNote">${(info.note||'').replace(/</g,'&lt;')}</textarea>
       </label>
 
       <div style="margin-top:10px">
@@ -690,20 +741,72 @@
 
     area.appendChild(editDiv);
 
-    // 編集画面の extra +/- ハンドラ
+    // --- render table checkboxes in edit form ---
+    const editTableChoice = document.getElementById('editTableChoice');
+    editTableChoice.innerHTML = "";
+    TABLES.forEach(tNo => {
+      const span = document.createElement('span');
+      span.className = 'table-label';
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.className = 'table-checkbox';
+      cb.name = 'editTableNo';
+      cb.value = tNo;
+      cb.id = 'edit-tb-' + tNo;
+      if ((info.tables || []).includes(tNo)) cb.checked = true;
+      const lab = document.createElement('label');
+      lab.htmlFor = 'edit-tb-' + tNo;
+      lab.textContent = tNo;
+      const cap = document.createElement('span');
+      cap.className = 'cap-text';
+      cap.textContent = TABLE_CAPACITY[tNo] + '人';
+      lab.appendChild(cap);
+      span.appendChild(cb);
+      span.appendChild(lab);
+      editTableChoice.appendChild(span);
+    });
+
+    // --- init edit extra counts (populate from info) ---
+    document.getElementById('editChildPastaValue').value = info.childPlatePastaCount || 0;
+    document.getElementById('editChildPastaDisplay').textContent = String(info.childPlatePastaCount || 0);
+    document.getElementById('editChildHamburgerValue').value = info.childPlateHamburgerCount || 0;
+    document.getElementById('editChildHamburgerDisplay').textContent = String(info.childPlateHamburgerCount || 0);
+    document.getElementById('editBirthdayValue').value = info.birthdayPlateCount || 0;
+    document.getElementById('editBirthdayDisplay').textContent = String(info.birthdayPlateCount || 0);
+
+    // funamori: prefer funamoriCount, fallback to derived value
+    const initialFunamori = Number(info.funamoriCount || 0) || (info.funamoriAmount ? Math.round((info.funamoriAmount||0)/10000) : 0);
+    document.getElementById('editFunamoriValue').value = initialFunamori;
+    document.getElementById('editFunamoriDisplay').textContent = String(initialFunamori);
+
+    // --- attach handlers for edit qty buttons ---
+    editDiv.querySelectorAll('.edit-qty-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const action = btn.dataset.action;
+        const target = btn.dataset.target; // e.g. editChildPasta
+        editHandleCount(action, target);
+      });
+    });
+
+    // wire editExtra +/- (dinner simple)
     if (timeKey === 'dinner') {
-      document.getElementById('editExtraPlus').onclick = () => {
+      const editExtraPlus = document.getElementById('editExtraPlus');
+      const editExtraMinus = document.getElementById('editExtraMinus');
+      if (editExtraPlus) editExtraPlus.onclick = () => {
         const el = document.getElementById('editExtraCount');
         el.textContent = String(parseInt(el.textContent||'0',10) + 1);
       };
-      document.getElementById('editExtraMinus').onclick = () => {
+      if (editExtraMinus) editExtraMinus.onclick = () => {
         const el = document.getElementById('editExtraCount');
         const v = parseInt(el.textContent||'0',10);
         if (v > 0) el.textContent = String(v - 1);
       };
     }
 
-    document.getElementById("saveEditBtn").onclick = async () => {
+    // save / cancel handlers
+    document.getElementById('cancelEditBtn').onclick = () => renderList(selectedDate);
+
+    document.getElementById('saveEditBtn').onclick = async () => {
       const editName = document.getElementById("editName").value.trim();
       const editTel = document.getElementById("editTel").value.trim();
       const editNumA = document.getElementById("editNumA").value.trim();
@@ -718,6 +821,17 @@
       if (editName && !(/^[ァ-ヴー]+$/.test(editName))) { alert("名前はカタカナのみで入力してください"); return; }
       if (editTel && !(/^[0-9]+$/.test(editTel))) { alert("電話番号は数字のみで入力してください"); return; }
 
+      // collect selected tables from editTableChoice
+      const tables = [];
+      document.querySelectorAll("input[name=editTableNo]:checked").forEach(cb => tables.push(cb.value));
+      if (tables.length === 0) { alert("テーブル番号を1つ以上選択してください"); return; }
+
+      // collect extras from edit fields
+      const eChildPasta = Number(document.getElementById('editChildPastaValue').value) || 0;
+      const eChildHamb = Number(document.getElementById('editChildHamburgerValue').value) || 0;
+      const eBday = Number(document.getElementById('editBirthdayValue').value) || 0;
+      const eFunamori = Number(document.getElementById('editFunamoriValue').value) || 0;
+
       try {
         await db.collection(RES_COLLECTION).doc(info._id).update({
           name: editName || null,
@@ -728,16 +842,38 @@
           bdayPlate: editBdayPlate,
           note: editNote,
           course: editCourse || null,
-          extraUnder15: editExtra || 0
+          extraUnder15: editExtra || 0,
+          tables: tables,
+          // new extras fields
+          childPlatePastaCount: eChildPasta,
+          childPlateHamburgerCount: eChildHamb,
+          birthdayPlateCount: eBday,
+          funamoriCount: eFunamori
         });
       } catch (err) {
         console.error('Update failed', err);
         alert('更新に失敗しました: ' + (err.message || err));
+        return;
       }
+
+      // after save, show list
       renderList(selectedDate);
     };
 
-    document.getElementById("cancelEditBtn").onclick = ()=>renderList(selectedDate);
+    // helper: edit count handling (no upper limit)
+    function editHandleCount(action, editKey) {
+      const display = document.getElementById(editKey + 'Display');
+      const input = document.getElementById(editKey + 'Value');
+      let v = Number(input.value) || 0;
+
+      if (action === 'increase') {
+        v++;
+      } else {
+        v = Math.max(0, v - 1);
+      }
+      input.value = v;
+      if (display) display.textContent = String(v);
+    }
   }
 
   // ---------- extras 用定数・ハンドラ（funamori はカウントのみ、合計に含めない） ----------
@@ -762,27 +898,14 @@
     updateExtrasPreview();
   }
 
-  // カウント操作（プレート・舟盛り・誕生日）
+  // カウント操作（プレート・舟盛り・誕生日） — 上限なし（ユーザ指示に基づく）
   function handleCount(action, key) {
     const display = document.getElementById(key + 'Display');
     const input = document.getElementById(key + 'Value');
     let v = Number(input.value) || 0;
-    const childNumEl = document.getElementById('childNum') || document.getElementById('numChild');
-    const maxChildren = Math.max(0, Number(childNumEl?.value || 0));
 
     if (action === 'increase') {
-      // birthday は max 1
-      if (key === 'birthday') {
-        if (v < 1) v++;
-      } else if (key === 'childPasta' || key === 'childHamburger') {
-        // 子ども向けプレートは合計が子ども人数を超えないようにする
-        const otherKey = (key === 'childPasta') ? 'childHamburger' : 'childPasta';
-        const otherVal = otherKey ? (Number(document.getElementById(otherKey + 'Value').value) || 0) : 0;
-        if (maxChildren === 0 || (v + otherVal) < maxChildren) v++;
-      } else {
-        // funamori は個数制限なし（増加）
-        v++;
-      }
+      v++;
     } else if (action === 'decrease') {
       v = Math.max(0, v - 1);
     }
@@ -816,7 +939,7 @@
     };
   }
 
-  // 編集画面で既存データを反映するための関数
+  // 編集画面で既存データを反映するための関数 (main form)
   function populateExtrasFromDoc(docData) {
     const d = docData || {};
     document.getElementById('childPastaValue').value = d.childPlatePastaCount || 0;
@@ -826,7 +949,6 @@
     document.getElementById('birthdayValue').value = d.birthdayPlateCount || 0;
     document.getElementById('birthdayDisplay').textContent = String(d.birthdayPlateCount || 0);
 
-    // funamori: カウント保存（legacy の funamoriAmount がある場合は無視してカウントを優先）
     const funaCount = Number(d.funamoriCount || 0);
     document.getElementById('funamoriValue').value = funaCount;
     document.getElementById('funamoriDisplay').textContent = String(funaCount);
