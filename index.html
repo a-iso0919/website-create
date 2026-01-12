@@ -652,11 +652,6 @@
         <input type="number" id="editNumC" value="${info.numChild}" min="0" max="10" required>
       </label>
 
-      <div class="edit-form-checks" style="margin-top:6px;">
-        <label style="margin-right:8px;"><input type="checkbox" id="editChildPlate" ${info.childPlate ? "checked" : ""}>お子様プレート</label>
-        <label><input type="checkbox" id="editBdayPlate" ${info.bdayPlate ? "checked" : ""}>誕生日プレート</label>
-      </div>
-
       ${timeKey === 'dinner' ? `
       <label style="margin-top:10px;">コース:
         <select id="editCourse">
