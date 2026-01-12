@@ -42,7 +42,7 @@
       <!-- ここからディナー専用オプション（初期は非表示） -->
       <div id="dinnerOptions" style="display:none; grid-column: 1/-1;">
         <fieldset style="border-radius:10px;padding:10px;background:#fff7ea;border:1px solid #efdfc0;">
-          <legend style="font-weight:700;color:#6b4423">ディナー追加オプション</legend>
+          <legend style="font-weight:700;color:#6b4423">ディナーコース選択</legend>
 
           <label style="margin-bottom:8px;">
             コース選択:
@@ -80,11 +80,42 @@
         電話番号:
         <input type="tel" id="tel" pattern="^[0-9]+$" placeholder="例：09012345678">
       </label>
+        <!-- 置き換え：備考部分（スタイルは styles.css に移動済み） -->
       <label style="grid-column: 1/-1;">
         備考：
-        <div class="checkboxes">
-          <label><input type="checkbox" id="childPlate" value="お子様プレート">お子様プレート</label>
-          <label><input type="checkbox" id="bdayPlate" value="誕生日プレート">誕生日プレート</label>
+        <div id="extrasSection" class="extras-section">
+        
+          <!-- お子様プレート（パスタ） -->
+          <div class="extras-row">
+            <label class="extras-label">お子様プレート（パスタ） ¥650</label>
+            <button type="button" id="childPastaMinus" class="qty-btn">−</button>
+            <input id="childPastaCount" name="childPastaCount" class="qty-input" type="number" min="0" max="100" value="0" />
+            <button type="button" id="childPastaPlus" class="qty-btn">＋</button>
+          </div>
+        
+          <!-- お子様プレート（ハンバーグ） -->
+          <div class="extras-row">
+            <label class="extras-label">お子様プレート（ハンバーグ） ¥650</label>
+            <button type="button" id="childHamburgerMinus" class="qty-btn">−</button>
+            <input id="childHamburgerCount" name="childHamburgerCount" class="qty-input" type="number" min="0" max="100" value="0" />
+            <button type="button" id="childHamburgerPlus" class="qty-btn">＋</button>
+          </div>
+        
+          <!-- 誕生日プレート -->
+          <div class="extras-row">
+            <label class="extras-label">誕生日プレート ¥1,300</label>
+            <button type="button" id="birthdayMinus" class="qty-btn">−</button>
+            <input id="birthdayCount" name="birthdayCount" class="qty-input" type="number" min="0" max="100" value="0" />
+            <button type="button" id="birthdayPlus" class="qty-btn">＋</button>
+          </div>
+        
+          <!-- 舟盛り（金額記入） -->
+          <div class="extras-row">
+            <label class="extras-label">舟盛り（¥10,000〜）</label>
+            <input id="funamoriAmount" name="funamoriAmount" class="funamori-input" type="number" min="0" step="1000" value="0" placeholder="0 = 選択なし" />
+          </div>
+      
+          <div id="extrasPricePreview" class="extras-price-preview">舟盛り金額: ¥0</div>
         </div>
         <textarea id="note" placeholder="ご要望など自由記入"></textarea>
       </label>
