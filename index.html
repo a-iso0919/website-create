@@ -85,7 +85,6 @@
         備考：
         <!-- 置き換え：備考部分（横並び ± 表示） -->
         <div id="extrasSection" class="extras-section">
-          <h3 class="extras-title">追加オプション（備考）</h3>
         
           <!-- お子様プレート（パスタ） -->
           <div class="extras-row">
@@ -111,7 +110,7 @@
         
           <!-- 誕生日プレート -->
           <div class="extras-row">
-            <label class="extras-label">誕生日プレート ¥2,000</label>
+            <label class="extras-label">誕生日プレート ¥1,300</label>
             <div class="extras-control" data-type="count" data-key="birthday">
               <button type="button" class="qty-btn" data-action="decrease" data-target="birthday">−</button>
               <div class="count-display" id="birthdayDisplay">0</div>
@@ -120,12 +119,12 @@
             </div>
           </div>
         
-          <!-- 舟盛り（金額表示） -->
+          <!-- 舟盛り（個数表示） -->
           <div class="extras-row">
             <label class="extras-label">舟盛り（¥10,000〜）</label>
             <div class="extras-control" data-type="amount" data-key="funamori">
               <button type="button" class="qty-btn" data-action="decrease" data-target="funamori">−</button>
-              <div class="amount-display" id="funamoriDisplay">¥0</div>
+              <div class="count-display" id="funamoriDisplay">0</div>
               <button type="button" class="qty-btn" data-action="increase" data-target="funamori">＋</button>
               <input type="hidden" id="funamoriValue" name="funamoriAmount" value="0" />
             </div>
@@ -725,7 +724,7 @@
     document.getElementById("cancelEditBtn").onclick = ()=>renderList(selectedDate);
   }
   const PRICE_CHILD_PLATE = 650;
-  const PRICE_BIRTHDAY_PLATE = 2000;
+  const PRICE_BIRTHDAY_PLATE = 1300;
   const FUNAMORI_STEP = 1000;
   const FUNAMORI_MIN = 10000;
 
@@ -744,9 +743,6 @@
         }
       });
     });
-
-    // 初期表示更新
-    updateExtrasPreview();
   }
 
   // カウント操作（プレート類）
@@ -772,37 +768,6 @@
     }
     input.value = v;
     display.textContent = String(v);
-    updateExtrasPreview();
-  }
-
-  // 舟盛りの増減（amount）
-  function handleFunamori(action) {
-    const display = document.getElementById('funamoriDisplay');
-    const input = document.getElementById('funamoriValue');
-    let v = Number(input.value) || 0;
-    if (action === 'increase') {
-      if (v === 0) v = FUNAMORI_MIN;
-      else v = v + FUNAMORI_STEP;
-    } else if (action === 'decrease') {
-      if (v === 0) v = 0;
-      else if (v <= FUNAMORI_MIN) v = 0;
-      else v = Math.max(0, v - FUNAMORI_STEP);
-    }
-    input.value = v;
-    display.textContent = '¥' + v.toLocaleString();
-    updateExtrasPreview();
-  }
-
-  // プレビュー更新（追加料金合計）
-  function updateExtrasPreview() {
-    const pasta = Number(document.getElementById('childPastaValue').value) || 0;
-    const hamb = Number(document.getElementById('childHamburgerValue').value) || 0;
-    const bday = Number(document.getElementById('birthdayValue').value) || 0;
-    const funa = Number(document.getElementById('funamoriValue').value) || 0;
-    const extrasTotal = (pasta + hamb) * PRICE_CHILD_PLATE + bday * PRICE_BIRTHDAY_PLATE + funa;
-    document.getElementById('extrasPricePreview').textContent = '追加料金: ¥' + extrasTotal.toLocaleString();
-    // 既存の合計計算があれば呼び出す
-    if (typeof recalcTotal === 'function') recalcTotal();
   }
 
   // 保存時にこれを呼んで Firestore にマージするデータを取得
@@ -833,7 +798,6 @@
     document.getElementById('birthdayDisplay').textContent = String(d.birthdayPlateCount || 0);
     document.getElementById('funamoriValue').value = d.funamoriAmount || 0;
     document.getElementById('funamoriDisplay').textContent = '¥' + (Number(d.funamoriAmount || 0)).toLocaleString();
-    updateExtrasPreview();
   }
 
   // ページ読み込み時に初期化を呼ぶ（まだ呼んでいない場合）
