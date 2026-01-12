@@ -83,39 +83,55 @@
         <!-- 置き換え：備考部分（スタイルは styles.css に移動済み） -->
       <label style="grid-column: 1/-1;">
         備考：
+        <!-- 置き換え：備考部分（横並び ± 表示） -->
         <div id="extrasSection" class="extras-section">
+          <h3 class="extras-title">追加オプション（備考）</h3>
         
           <!-- お子様プレート（パスタ） -->
           <div class="extras-row">
             <label class="extras-label">お子様プレート（パスタ） ¥650</label>
-            <button type="button" id="childPastaMinus" class="qty-btn">−</button>
-            <input id="childPastaCount" name="childPastaCount" class="qty-input" type="number" min="0" max="100" value="0" />
-            <button type="button" id="childPastaPlus" class="qty-btn">＋</button>
+            <div class="extras-control" data-type="count" data-key="childPasta">
+              <button type="button" class="qty-btn" data-action="decrease" data-target="childPasta">−</button>
+              <div class="count-display" id="childPastaDisplay">0</div>
+              <button type="button" class="qty-btn" data-action="increase" data-target="childPasta">＋</button>
+              <input type="hidden" id="childPastaValue" name="childPastaCount" value="0" />
+            </div>
           </div>
         
           <!-- お子様プレート（ハンバーグ） -->
           <div class="extras-row">
             <label class="extras-label">お子様プレート（ハンバーグ） ¥650</label>
-            <button type="button" id="childHamburgerMinus" class="qty-btn">−</button>
-            <input id="childHamburgerCount" name="childHamburgerCount" class="qty-input" type="number" min="0" max="100" value="0" />
-            <button type="button" id="childHamburgerPlus" class="qty-btn">＋</button>
+            <div class="extras-control" data-type="count" data-key="childHamburger">
+              <button type="button" class="qty-btn" data-action="decrease" data-target="childHamburger">−</button>
+              <div class="count-display" id="childHamburgerDisplay">0</div>
+              <button type="button" class="qty-btn" data-action="increase" data-target="childHamburger">＋</button>
+              <input type="hidden" id="childHamburgerValue" name="childHamburgerCount" value="0" />
+            </div>
           </div>
         
           <!-- 誕生日プレート -->
           <div class="extras-row">
-            <label class="extras-label">誕生日プレート ¥1,300</label>
-            <button type="button" id="birthdayMinus" class="qty-btn">−</button>
-            <input id="birthdayCount" name="birthdayCount" class="qty-input" type="number" min="0" max="100" value="0" />
-            <button type="button" id="birthdayPlus" class="qty-btn">＋</button>
+            <label class="extras-label">誕生日プレート ¥2,000</label>
+            <div class="extras-control" data-type="count" data-key="birthday">
+              <button type="button" class="qty-btn" data-action="decrease" data-target="birthday">−</button>
+              <div class="count-display" id="birthdayDisplay">0</div>
+              <button type="button" class="qty-btn" data-action="increase" data-target="birthday">＋</button>
+              <input type="hidden" id="birthdayValue" name="birthdayCount" value="0" />
+            </div>
           </div>
         
-          <!-- 舟盛り（金額記入） -->
+          <!-- 舟盛り（金額表示） -->
           <div class="extras-row">
             <label class="extras-label">舟盛り（¥10,000〜）</label>
-            <input id="funamoriAmount" name="funamoriAmount" class="funamori-input" type="number" min="0" step="1000" value="0" placeholder="0 = 選択なし" />
+            <div class="extras-control" data-type="amount" data-key="funamori">
+              <button type="button" class="qty-btn" data-action="decrease" data-target="funamori">−</button>
+              <div class="amount-display" id="funamoriDisplay">¥0</div>
+              <button type="button" class="qty-btn" data-action="increase" data-target="funamori">＋</button>
+              <input type="hidden" id="funamoriValue" name="funamoriAmount" value="0" />
+            </div>
           </div>
-      
-          <div id="extrasPricePreview" class="extras-price-preview">舟盛り金額: ¥0</div>
+        
+          <div id="extrasPricePreview" class="extras-price-preview">※舟盛り金額は以下自由記入欄に入力ください。</div>
         </div>
         <textarea id="note" placeholder="ご要望など自由記入"></textarea>
       </label>
@@ -707,6 +723,124 @@
     };
 
     document.getElementById("cancelEditBtn").onclick = ()=>renderList(selectedDate);
+  }
+  const PRICE_CHILD_PLATE = 650;
+  const PRICE_BIRTHDAY_PLATE = 2000;
+  const FUNAMORI_STEP = 1000;
+  const FUNAMORI_MIN = 10000;
+
+  function initExtrasHandlers() {
+    // 共通クリックハンドラ（delegation）
+    document.querySelectorAll('.extras-control .qty-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const action = btn.dataset.action;
+        const target = btn.dataset.target;
+        if (action && target) {
+          if (target === 'funamori') {
+            handleFunamori(action);
+          } else {
+            handleCount(action, target);
+          }
+        }
+      });
+    });
+
+    // 初期表示更新
+    updateExtrasPreview();
+  }
+
+  // カウント操作（プレート類）
+  function handleCount(action, key) {
+    const display = document.getElementById(key + 'Display');
+    const input = document.getElementById(key + 'Value');
+    let v = Number(input.value) || 0;
+    const childNumEl = document.getElementById('childNum') || document.getElementById('numChild');
+    const maxChildren = Math.max(0, Number(childNumEl?.value || 0));
+    // 合計上限を enforce（子ども人数を超えないようにする）
+    if (action === 'increase') {
+      // increase only if total won't exceed maxChildren
+      const otherKey = (key === 'childPasta') ? 'childHamburger' : (key === 'childHamburger') ? 'childPasta' : null;
+      const otherVal = otherKey ? (Number(document.getElementById(otherKey + 'Value').value) || 0) : 0;
+      if (key === 'birthday') {
+        // birthday max 1
+        if (v < 1) v++;
+      } else {
+        if (maxChildren === 0 || (v + otherVal) < maxChildren) v++;
+      }
+    } else if (action === 'decrease') {
+      v = Math.max(0, v - 1);
+    }
+    input.value = v;
+    display.textContent = String(v);
+    updateExtrasPreview();
+  }
+
+  // 舟盛りの増減（amount）
+  function handleFunamori(action) {
+    const display = document.getElementById('funamoriDisplay');
+    const input = document.getElementById('funamoriValue');
+    let v = Number(input.value) || 0;
+    if (action === 'increase') {
+      if (v === 0) v = FUNAMORI_MIN;
+      else v = v + FUNAMORI_STEP;
+    } else if (action === 'decrease') {
+      if (v === 0) v = 0;
+      else if (v <= FUNAMORI_MIN) v = 0;
+      else v = Math.max(0, v - FUNAMORI_STEP);
+    }
+    input.value = v;
+    display.textContent = '¥' + v.toLocaleString();
+    updateExtrasPreview();
+  }
+
+  // プレビュー更新（追加料金合計）
+  function updateExtrasPreview() {
+    const pasta = Number(document.getElementById('childPastaValue').value) || 0;
+    const hamb = Number(document.getElementById('childHamburgerValue').value) || 0;
+    const bday = Number(document.getElementById('birthdayValue').value) || 0;
+    const funa = Number(document.getElementById('funamoriValue').value) || 0;
+    const extrasTotal = (pasta + hamb) * PRICE_CHILD_PLATE + bday * PRICE_BIRTHDAY_PLATE + funa;
+    document.getElementById('extrasPricePreview').textContent = '追加料金: ¥' + extrasTotal.toLocaleString();
+    // 既存の合計計算があれば呼び出す
+    if (typeof recalcTotal === 'function') recalcTotal();
+  }
+
+  // 保存時にこれを呼んで Firestore にマージするデータを取得
+  function getExtrasForSave() {
+    const pasta = Number(document.getElementById('childPastaValue').value) || 0;
+    const hamb = Number(document.getElementById('childHamburgerValue').value) || 0;
+    const bday = Number(document.getElementById('birthdayValue').value) || 0;
+    const funa = Number(document.getElementById('funamoriValue').value) || 0;
+    const extrasTotal = (pasta + hamb) * PRICE_CHILD_PLATE + bday * PRICE_BIRTHDAY_PLATE + funa;
+    return {
+      childPlatePastaCount: pasta,
+      childPlateHamburgerCount: hamb,
+      birthdayPlateCount: bday,
+      funamoriAmount: funa,
+      extrasTotal: extrasTotal,
+      extrasUnitPrices: { childPlateUnit: PRICE_CHILD_PLATE, birthdayPlateUnit: PRICE_BIRTHDAY_PLATE }
+    };
+  }
+
+  // 編集画面で既存データを反映するための関数
+  function populateExtrasFromDoc(docData) {
+    const d = docData || {};
+    document.getElementById('childPastaValue').value = d.childPlatePastaCount || 0;
+    document.getElementById('childPastaDisplay').textContent = String(d.childPlatePastaCount || 0);
+    document.getElementById('childHamburgerValue').value = d.childPlateHamburgerCount || 0;
+    document.getElementById('childHamburgerDisplay').textContent = String(d.childPlateHamburgerCount || 0);
+    document.getElementById('birthdayValue').value = d.birthdayPlateCount || 0;
+    document.getElementById('birthdayDisplay').textContent = String(d.birthdayPlateCount || 0);
+    document.getElementById('funamoriValue').value = d.funamoriAmount || 0;
+    document.getElementById('funamoriDisplay').textContent = '¥' + (Number(d.funamoriAmount || 0)).toLocaleString();
+    updateExtrasPreview();
+  }
+
+  // ページ読み込み時に初期化を呼ぶ（まだ呼んでいない場合）
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initExtrasHandlers);
+  } else {
+    initExtrasHandlers();
   }
 </script>
 </body>
