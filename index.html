@@ -321,17 +321,32 @@
     renderList(selectedDateVal);
   };
 
-  // 一覧ライブ描画（drawTable を timeKey==='dinner' に対応）
+  // 一覧ライブ描画（改良版：初期は「日付を選択してください」を表示）
   let unsubscribe = null;
   function renderList(selectedDate) {
     const area = document.getElementById("listArea");
+    // Safety: clear area first
+    area.innerHTML = "";
+
+    // 初期表示（selectedDate が未指定/空文字 のとき）
+    if (!selectedDate) {
+      // リスナーがあれば解除しておく（不要な読み込み防止）
+      if (typeof unsubscribe === 'function') {
+        try { unsubscribe(); } catch(e){ /* ignore */ }
+        unsubscribe = null;
+      }
+      area.innerHTML = '<div style="color:#666;padding:18px;font-size:1rem;">日付を選択してください（カレンダーで日付を選ぶと、その日の予約が表示されます）</div>';
+      return;
+    }
+
+    // 日付が指定されている場合は通常通り読み込み
     area.innerHTML = "<div style='color:#aaa;padding:14px;'>読込中...</div>";
     if (unsubscribe) unsubscribe();
     unsubscribe = db.collection(RES_COLLECTION)
       .orderBy("date").orderBy("time").orderBy("createdAt")
       .onSnapshot((querySnap)=>{
         const docs = querySnap.docs.map((d,i)=>({...d.data(), _id: d.id, index:i}));
-        const filtered = selectedDate ? docs.filter(r=>r.date===selectedDate) : docs;
+        const filtered = selectedDate ? docs.filter(r=>r.date===selectedDate) : [];
         drawTable(filtered, selectedDate);
       }, err => {
         console.error('onSnapshot error', err);
