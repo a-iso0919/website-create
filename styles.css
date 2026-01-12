@@ -193,4 +193,77 @@ td.table-no.available {
 #dinnerOptions fieldset { border-color:#efd3a4; }
 #dinnerOptions legend { font-size:0.98em; }
 
-/* 既存の no-divider / 行線スタイルがある前提でそのまま維持 */
+/* 追加：備考（追加オプション）用スタイル */
+.extras-section {
+  margin-top: 14px;
+  border-radius: 8px;
+  padding: 12px;
+  background: #fbf6ec;
+  border: 1px solid #eddecb;
+  box-sizing: border-box;
+}
+.extras-title {
+  margin: 0 0 10px 0;
+  color: #6b4423;
+  font-size: 1rem;
+  font-weight: 600;
+}
+.extras-row {
+  display: flex;
+  align-items: center;
+  margin: 6px 0;
+  gap: 8px;
+}
+.extras-label {
+  flex: 1;
+  color: #333;
+  min-width: 0;
+}
+.qty-btn {
+  background: transparent;
+  border: 1px solid #e4d7bf;
+  border-radius: 6px;
+  width: 36px;
+  height: 30px;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  color: #6b4423;
+}
+.qty-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.qty-input {
+  width: 56px;
+  text-align: center;
+  border-radius: 6px;
+  border: 1px solid #e4d7bf;
+  margin: 0 6px;
+  padding: 4px;
+  box-sizing: border-box;
+}
+.funamori-input {
+  width: 140px;
+  text-align: right;
+  border-radius: 6px;
+  border: 1px solid #e4d7bf;
+  margin-left: 8px;
+  padding-right: 6px;
+  box-sizing: border-box;
+}
+.extras-note {
+  color: #7a6650;
+  margin-left: 8px;
+  font-size: 0.9rem;
+}
+.extras-price-preview {
+  margin-top: 10px;
+  color: #6b4423;
+  font-weight: 600;
+}
+@media (max-width: 520px) {
+  .extras-row { flex-direction: column; align-items: stretch; gap: 6px; }
+  .qty-input, .funamori-input { width: 100%; }
+  .qty-btn { width: 44px; }
+}
