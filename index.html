@@ -817,22 +817,30 @@
       const editNote = document.getElementById("editNote")?.value.trim() || "";
       const editCourse = (timeKey === 'dinner' && document.getElementById("editCourse")) ? (document.getElementById("editCourse").value || null) : null;
       const editExtra = timeKey === 'dinner' ? parseInt(document.getElementById("editExtraCount")?.textContent||'0',10) : 0;
-
+    
       if (editNumA === "" || editNumC === "") { alert("人数入力必須です"); return; }
       if (editName && !(/^[ァ-ヴー]+$/.test(editName))) { alert("名前はカタカナのみで入力してください"); return; }
       if (editTel && !(/^[0-9]+$/.test(editTel))) { alert("電話番号は数字のみで入力してください"); return; }
-
+    
       // collect selected tables from editTableChoice
       const tables = [];
       document.querySelectorAll("input[name=editTableNo]:checked").forEach(cb => tables.push(cb.value));
       if (tables.length === 0) { alert("テーブル番号を1つ以上選択してください"); return; }
-
+    
+      // 新規：編集時も選択テーブル合計キャパチェック
+      const totalPeople = (Number(editNumA) || 0) + (Number(editNumC) || 0);
+      const totalCap = tables.reduce((sum, t) => sum + (Number(TABLE_CAPACITY[t] || 0)), 0);
+      if (totalPeople > totalCap) {
+        alert("選択されたテーブルより予約人数が上回っています。テーブルを追加選択してください。");
+        return;
+      }
+    
       // collect extras from edit fields (guarded)
       const eChildPasta = Number(document.getElementById('editChildPastaValue')?.value || 0);
       const eChildHamb = Number(document.getElementById('editChildHamburgerValue')?.value || 0);
       const eBday = Number(document.getElementById('editBirthdayValue')?.value || 0);
       const eFunamori = Number(document.getElementById('editFunamoriValue')?.value || 0);
-
+    
       try {
         await db.collection(RES_COLLECTION).doc(info._id).update({
           name: editName || null,
@@ -856,7 +864,7 @@
         alert('更新に失敗しました: ' + (err.message || err));
         return;
       }
-
+    
       // after save, show list
       renderList(selectedDate);
     };
