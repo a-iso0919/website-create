@@ -58,10 +58,20 @@
     window.location.href = 'index.html';
   });
 
+  // helper: Japanese weekday label for YYYY-MM-DD
+  function weekdayLabelFromYMD(ymd) {
+    if (!ymd) return '';
+    const d = new Date(ymd + 'T00:00:00');
+    if (isNaN(d)) return '';
+    const labels = ['日','月','火','水','木','金','土'];
+    return labels[d.getDay()];
+  }
+
   document.getElementById('addClosedBtn').addEventListener('click', async () => {
     const inp = document.getElementById('closedDate');
     const val = inp.value;
     if (!val) { alert('日付を選択してください'); return; }
+
     try {
       // use doc id = YYYY-MM-DD for easy upsert / delete
       await db.collection('closed_dates').doc(val).set({
@@ -71,11 +81,14 @@
       inp.value = '';
     } catch (err) {
       console.error('add closed date failed', err);
-      alert('追加に失敗しました: '+(err.message||err));
+      const msg = (err && err.code === 'permission-denied')
+        ? '臨時休業日の追加に権限がありません。'
+        : '追加に失敗しました: ' + (err.message || err);
+      alert(msg);
     }
   });
 
-  // list and watch closed_dates
+  // list and watch closed_dates (display date with weekday e.g. 2026-01-22(木))
   function watchClosedDates() {
     const list = document.getElementById('closedList');
     list.innerHTML = '<div style="color:#666">読み込み中...</div>';
@@ -87,34 +100,48 @@
       }
       snapshot.docs.forEach(doc => {
         const d = doc.data();
+        const displayDate = d.date || doc.id;
+        const wd = weekdayLabelFromYMD(displayDate);
+        const text = wd ? `${displayDate}(${wd})` : displayDate;
+
         const row = document.createElement('div');
         row.style.display = 'flex';
         row.style.alignItems = 'center';
         row.style.justifyContent = 'space-between';
         row.style.padding = '6px 0';
+
         const left = document.createElement('div');
-        left.textContent = d.date;
+        left.textContent = text;
+
         const right = document.createElement('div');
         const del = document.createElement('button');
         del.className = 'act-btn';
         del.textContent = '削除';
         del.addEventListener('click', async () => {
-          if (!confirm(d.date + ' を臨時休業日から削除しますか？')) return;
+          if (!confirm(`${text} を臨時休業日から削除しますか？`)) return;
           try {
             await db.collection('closed_dates').doc(doc.id).delete();
           } catch (err) {
             console.error('delete closed date failed', err);
-            alert('削除に失敗しました: '+(err.message||err));
+            const msg = (err && err.code === 'permission-denied')
+              ? '臨時休業日の削除に権限がありません。'
+              : '削除に失敗しました: '+(err.message||err);
+            alert(msg);
           }
         });
         right.appendChild(del);
+
         row.appendChild(left);
         row.appendChild(right);
         list.appendChild(row);
       });
     }, err => {
       console.error('watchClosedDates error', err);
-      list.innerHTML = '<div style="color:#a00">読み込みに失敗しました: '+(err.message||err)+'</div>';
+      if (err && err.code === 'permission-denied') {
+        document.getElementById('closedList').innerHTML = '<div style="color:#a00">臨時休業日の表示に権限がありません。管理者に問い合わせてください。</div>';
+      } else {
+        document.getElementById('closedList').innerHTML = '<div style="color:#a00">読み込みに失敗しました: '+(err.message||err)+'</div>';
+      }
     });
   }
 </script>
