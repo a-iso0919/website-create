@@ -287,24 +287,27 @@
   // 予約登録（course, extraUnder15 を追加）
   document.getElementById("resForm").onsubmit = async function(e) {
     e.preventDefault();
-    const date = document.getElementById("date").value;
-    const time = document.getElementById("time").value;
-    const numAdult = document.getElementById("numAdult").value.trim();
-    const numChild = document.getElementById("numChild").value.trim();
-    const name = document.getElementById("name").value.trim();
-    const tel = document.getElementById("tel").value.trim();
-    const childPlate = document.getElementById("childPlate") ? document.getElementById("childPlate").checked : false;
-    const bdayPlate = document.getElementById("bdayPlate") ? document.getElementById("bdayPlate").checked : false;
-    const note = document.getElementById("note").value.trim();
+  
+    const date = document.getElementById("date")?.value || "";
+    const time = document.getElementById("time")?.value || "";
+    const numAdultRaw = document.getElementById("numAdult")?.value;
+    const numChildRaw = document.getElementById("numChild")?.value;
+    const numAdult = Number(numAdultRaw || 0);
+    const numChild = Number(numChildRaw || 0);
+    const name = document.getElementById("name")?.value.trim() || "";
+    const tel = document.getElementById("tel")?.value.trim() || "";
+    const note = document.getElementById("note")?.value.trim() || "";
+  
+    // collect selected tables
     const tables = [];
     document.querySelectorAll("input[name=tableNo]:checked").forEach(cb => tables.push(cb.value));
-
-    // ディナー追加データ
+  
+    // ディナー追加データ（既存）
     const course = document.getElementById("dinnerCourse") ? document.getElementById("dinnerCourse").value || null : null;
     const extraUnder15 = document.getElementById("extraCount") ? parseInt(document.getElementById("extraCount").textContent || '0', 10) : 0;
-
+  
     // 必須項目チェック
-    if (!date || !time || numAdult==="" || numChild==="") {
+    if (!date || !time || isNaN(numAdult) || isNaN(numChild)) {
       alert("日付・時間・人数は必須です");
       return;
     }
@@ -320,8 +323,16 @@
       alert("テーブル番号を選択してください");
       return;
     }
-
-    // 重複チェック
+  
+    // 新規追加：選択テーブル合計キャパチェック
+    const totalPeople = numAdult + numChild;
+    const totalCap = tables.reduce((sum, t) => sum + (Number(TABLE_CAPACITY[t] || 0)), 0);
+    if (totalPeople > totalCap) {
+      alert("選択されたテーブルより予約人数が上回っています。テーブルを追加選択してください。");
+      return;
+    }
+  
+    // 重複チェック（既存ロジック）
     try {
       const snapshot = await db.collection(RES_COLLECTION)
         .where("date", "==", date).where("time", "==", time)
@@ -339,14 +350,12 @@
       alert('予約の重複チェックに失敗しました: ' + (err.message || err));
       return;
     }
-
-    // 保存
+  
+    // 保存（extras をマージ）
     try {
-      // マージする extras データがあれば取得して保存データに含める
       const extras = (typeof getExtrasForSave === 'function') ? getExtrasForSave() : {};
       await db.collection(RES_COLLECTION).add(Object.assign({
-        date, time, numAdult, numChild, tables, name, tel,
-        childPlate, bdayPlate, note,
+        date, time, numAdult, numChild, tables, name, tel, note,
         course: course || null,
         extraUnder15: extraUnder15 || 0,
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
@@ -356,15 +365,13 @@
       alert('予約登録に失敗しました: ' + (err.message || err));
       return;
     }
-
+  
     // reset
     document.getElementById("resForm").reset();
     document.getElementById("time").value = "";
     selectedTime = "";
-    // reset dinner UI explicitly
     updateDinnerOptionsVisibility();
     document.getElementById("extraCount").textContent = '0';
-    // reset extras UI
     if (typeof populateExtrasFromDoc === 'function') populateExtrasFromDoc({});
     renderTableChoices();
     renderTimeChoices();
