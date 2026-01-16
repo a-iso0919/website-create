@@ -267,3 +267,26 @@ td.table-no.available {
   .extras-label { min-width: auto; }
   .amount-display { text-align: right; }
 }
+
+/* 小さな +/- ボタンのフォーカス表示を穏やかにする */
+.qty-btn {
+  /* 必要に応じて既存の見た目を維持 */
+  -webkit-appearance: none;
+  appearance: none;
+  outline: none;
+}
+
+/* マウスクリック時や自動フォーカスでの強い背景変化を抑える */
+.qty-btn:focus {
+  outline: none;
+  box-shadow: none;
+  background-color: transparent; /* 背景色を消す（必要なら微妙な色に調整） */
+}
+
+/* キーボード操作（Tab）でフォーカスされたときのみ視認性を保つ */
+.qty-btn:focus-visible {
+  outline: 2px solid rgba(107,68,35,0.7); /* デザインに合わせて色を調整 */
+  border-radius: 6px;
+  box-shadow: none;
+  background-color: rgba(255,255,255,0.0); /* 目立ちすぎない */
+}
