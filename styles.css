@@ -223,95 +223,45 @@ td.table-no.available {
   font-size: 0.95rem;
 }
 
-/* 中央のコントロール（± と表示） */
+/* --- 追加：qty ボタンのクリック領域を明確にする --- */
 .extras-control {
-  display:flex;
-  align-items:center;
-  gap:8px;
-  background: #fff;
-  border-radius: 6px;
-  padding: 4px;
-  border: 1px solid #e9ddc7;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;               /* ボタンと数値の間の余白 */
+  position: relative;
+  box-sizing: border-box;
 }
+
 .qty-btn {
-  background: transparent;
-  border: 1px solid #e4d7bf;
-  border-radius: 6px;
-  width: 34px;
-  height: 30px;
-  font-size: 16px;
-  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;             /* 見た目とクリック領域を一致させる */
+  height: 36px;
+  min-width: 36px;
+  padding: 0;              /* パディングは 0 にして領域を明確化 */
+  margin: 0;
+  border-radius: 8px;
   cursor: pointer;
-  color: #6b4423;
-}
-.qty-btn:disabled { opacity: 0.45; cursor: not-allowed; }
-.count-display {
-  min-width: 44px;
-  text-align: center;
-  font-weight: 700;
-  color: #231f20;
-  padding: 4px 6px;
-  border-radius: 4px;
-  background: transparent;
-}
-
-/* 補助説明 */
-.extras-note {
-  color: #7a6650;
-  font-size: 0.9rem;
-}
-
-/* レスポンシブ：狭い画面では縦並びに */
-@media (max-width: 560px) {
-  .extras-row { flex-direction: column; align-items: stretch; gap: 8px; }
-  .extras-label { min-width: auto; }
-  .amount-display { text-align: right; }
-}
-
-/* 小さな +/- ボタンのフォーカス表示を穏やかにする */
-.qty-btn {
-  /* 必要に応じて既存の見た目を維持 */
+  box-sizing: border-box;
+  z-index: 2;              /* 数値表示より前面に */
+  background-clip: padding-box;
   -webkit-appearance: none;
   appearance: none;
   outline: none;
 }
 
-/* ボタン／カウント領域の安定したレイアウト */
-.extras-control {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;               /* ボタンと数値の隙間を確保 */
-  position: relative;
-  box-sizing: border-box;
-}
-
-/* ボタンのサイズを固定して余白・パディングで見た目崩れしないように */
-.qty-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;             /* 必要に応じて調整 */
-  height: 36px;
-  min-width: 36px;
-  padding: 0;              /* パディングをリセットして領域を明確化 */
-  border-radius: 8px;
-  box-sizing: border-box;
-  cursor: pointer;
-  background-clip: padding-box;
-  z-index: 2;              /* 数値表示より前面に */
-}
-
-/* 中央の数値表示はクリックでアクティブにしない（pointer-events を無効化）*/
+/* 数字部分はクリックを受けない（誤クリックを防ぐ） */
 .count-display {
   width: 44px;
   min-width: 44px;
   text-align: center;
-  pointer-events: none;    /* 数字部分のクリックを無効化 → 誤って隣ボタンを押すことを防ぐ */
+  pointer-events: none;    /* ここをクリックしても何も起きない */
   user-select: none;
   z-index: 1;
 }
 
-/* フォーカス時の見た目を穏やかに（アクセシビリティを残すなら :focus-visible を使う） */
+/* フォーカス時の見た目（穏やかに） */
 .qty-btn:focus {
   outline: none;
 }
