@@ -67,16 +67,23 @@
     return labels[d.getDay()];
   }
 
+  // add closed date: now + 365 days expireAt
   document.getElementById('addClosedBtn').addEventListener('click', async () => {
     const inp = document.getElementById('closedDate');
     const val = inp.value;
     if (!val) { alert('日付を選択してください'); return; }
 
     try {
-      // use doc id = YYYY-MM-DD for easy upsert / delete
+      // compute expireAt = now + 365 days
+      const now = new Date();
+      const expireDate = new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000);
+      const expireAt = firebase.firestore.Timestamp.fromDate(expireDate);
+
+      // Use doc id = YYYY-MM-DD for easy upsert / delete and set createdAt + expireAt
       await db.collection('closed_dates').doc(val).set({
         date: val,
-        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+        expireAt: expireAt
       });
       inp.value = '';
     } catch (err) {
