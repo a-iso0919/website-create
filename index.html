@@ -54,7 +54,7 @@
           <label style="margin-bottom:8px;">
             コース選択:
             <select id="dinnerCourse">
-              <option value="">（コースなし）</option>
+              <option value="">（コースの種類を選択してください）</option>
               <option value="洋3000">洋3000円</option>
               <option value="洋4000">洋4000円</option>
               <option value="洋5000">洋5000円</option>
@@ -229,6 +229,15 @@
     return (day === 5 || day === 6);
   }
 
+  // compute expireAt Timestamp from dateStr 'YYYY-MM-DD' and days offset (default 7 days)
+  function computeExpireAtFromDate(dateStr, days = 7) {
+    if (!dateStr) return null;
+    const base = new Date(dateStr + 'T00:00:00');
+    if (isNaN(base)) return null;
+    const expireDate = new Date(base.getTime() + days * 24 * 60 * 60 * 1000);
+    return firebase.firestore.Timestamp.fromDate(expireDate);
+  }
+
   // top-right カレンダー編集ボタン遷移
   document.getElementById('calendarEditBtn').addEventListener('click', () => {
     window.location.href = 'calendar.html';
@@ -396,7 +405,7 @@
     renderList(selectedDateVal);
   });
 
-  // 予約登録（with table capacity check）
+  // 予約登録（with table capacity check） — expireAt を予約日 + 7日で追加
   document.getElementById("resForm").onsubmit = async function(e) {
     e.preventDefault();
   
@@ -452,7 +461,7 @@
     const totalPeople = numAdult + numChild;
     const totalCap = tables.reduce((sum, t) => sum + (Number(TABLE_CAPACITY[t] || 0)), 0);
     if (totalPeople > totalCap) {
-      alert("予約人数がテーブル人数のキャパを超えています。");
+      alert("選択されたテーブルより予約人数が上回っています。テーブルを追加選択してください。");
       return;
     }
   
@@ -475,14 +484,16 @@
       return;
     }
   
-    // 保存（extras をマージ）
+    // 保存（extras をマージ） — expireAt を予約日 + 7日で追加
     try {
       const extras = (typeof getExtrasForSave === 'function') ? getExtrasForSave() : {};
+      const expireAt = computeExpireAtFromDate(date, 7); // 予約日 + 7日
       await db.collection(RES_COLLECTION).add(Object.assign({
         date, time, numAdult, numChild, tables, name, tel, note,
         course: course || null,
         extraUnder15: extraUnder15 || 0,
-        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+        expireAt: expireAt
       }, extras));
     } catch (err) {
       console.error('Firestore add error', err);
@@ -776,7 +787,7 @@
       ${timeKey === 'dinner' ? `
       <label style="margin-top:10px;">コース:
         <select id="editCourse">
-          <option value="">（コースなし）</option>
+          <option value="">（コースの種類を選択してください）</option>
           <option value="洋3000" ${courseValue==='洋3000' ? 'selected' : ''}>洋3000円</option>
           <option value="洋4000" ${courseValue==='洋4000' ? 'selected' : ''}>洋4000円</option>
           <option value="洋5000" ${courseValue==='洋5000' ? 'selected' : ''}>洋5000円</option>
@@ -796,7 +807,7 @@
       ` : ``}
 
       <label style="display:block;margin-top:10px;">
-        テーブル（選択を変更できます）:
+        テーブル（選択テーブルを変更できます）:
         <div id="editTableChoice" style="margin-top:6px; display:flex; flex-wrap:wrap; gap:8px;"></div>
       </label>
 
@@ -950,7 +961,7 @@
       const totalPeople = (Number(editNumA) || 0) + (Number(editNumC) || 0);
       const totalCap = tables.reduce((sum, t) => sum + (Number(TABLE_CAPACITY[t] || 0)), 0);
       if (totalPeople > totalCap) {
-        alert("選択されたテーブルより予約人数が上回っています。テーブルを追加選択してください。");
+        alert("選択されたテーブルより予約人数が上回っています。テーブルを追加選択してください。。");
         return;
       }
 
@@ -959,6 +970,9 @@
       const eChildHamb = Number(document.getElementById('editChildHamburgerValue')?.value || 0);
       const eBday = Number(document.getElementById('editBirthdayValue')?.value || 0);
       const eFunamori = Number(document.getElementById('editFunamoriValue')?.value || 0);
+
+      // compute expireAt from info.date (if you allow editing the date in future, adjust accordingly)
+      const newExpireAt = computeExpireAtFromDate(info.date, 7);
 
       try {
         await db.collection(RES_COLLECTION).doc(info._id).update({
@@ -975,7 +989,8 @@
           childPlatePastaCount: eChildPasta,
           childPlateHamburgerCount: eChildHamb,
           birthdayPlateCount: eBday,
-          funamoriCount: eFunamori
+          funamoriCount: eFunamori,
+          expireAt: newExpireAt
         });
       } catch (err) {
         console.error('Update failed', err);
