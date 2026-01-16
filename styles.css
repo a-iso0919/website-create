@@ -276,17 +276,46 @@ td.table-no.available {
   outline: none;
 }
 
-/* マウスクリック時や自動フォーカスでの強い背景変化を抑える */
-.qty-btn:focus {
-  outline: none;
-  box-shadow: none;
-  background-color: transparent; /* 背景色を消す（必要なら微妙な色に調整） */
+/* ボタン／カウント領域の安定したレイアウト */
+.extras-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;               /* ボタンと数値の隙間を確保 */
+  position: relative;
+  box-sizing: border-box;
 }
 
-/* キーボード操作（Tab）でフォーカスされたときのみ視認性を保つ */
+/* ボタンのサイズを固定して余白・パディングで見た目崩れしないように */
+.qty-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;             /* 必要に応じて調整 */
+  height: 36px;
+  min-width: 36px;
+  padding: 0;              /* パディングをリセットして領域を明確化 */
+  border-radius: 8px;
+  box-sizing: border-box;
+  cursor: pointer;
+  background-clip: padding-box;
+  z-index: 2;              /* 数値表示より前面に */
+}
+
+/* 中央の数値表示はクリックでアクティブにしない（pointer-events を無効化）*/
+.count-display {
+  width: 44px;
+  min-width: 44px;
+  text-align: center;
+  pointer-events: none;    /* 数字部分のクリックを無効化 → 誤って隣ボタンを押すことを防ぐ */
+  user-select: none;
+  z-index: 1;
+}
+
+/* フォーカス時の見た目を穏やかに（アクセシビリティを残すなら :focus-visible を使う） */
+.qty-btn:focus {
+  outline: none;
+}
 .qty-btn:focus-visible {
-  outline: 2px solid rgba(107,68,35,0.7); /* デザインに合わせて色を調整 */
-  border-radius: 6px;
+  outline: 2px solid rgba(107,68,35,0.6);
   box-shadow: none;
-  background-color: rgba(255,255,255,0.0); /* 目立ちすぎない */
 }
