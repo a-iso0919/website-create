@@ -603,6 +603,31 @@ if (dateElement) {
   dateElement.addEventListener('input', scheduleProcessDate);
   dateElement.removeEventListener('change', scheduleProcessDate);
   dateElement.addEventListener('change', scheduleProcessDate);
+  // 追加: iPad の「完了（Done）」で change が発生した時に即処理する
+  dateElement.addEventListener('change', function(e){
+    try {
+      const normalized = normalizeDateInputValue(dateElement);
+      // 値が空なら通常のスケジューラに任せる
+      if (!normalized) {
+        scheduleProcessDate(e);
+        return;
+      }
+  
+      // ユーザー操作（Done ボタン含む）であればピッカー開閉フラグに関係なく即座に処理
+      if (e && e.isTrusted) {
+        // 既存のタイマーがあればキャンセル
+        if (_dateProcessTimer) { clearTimeout(_dateProcessTimer); _dateProcessTimer = null; }
+        // 少し遅らせて安定させたい場合は setTimeout(..., 0) にすることも可
+        processNormalizedDate(normalized, true);
+      } else {
+        // プログラム起因や非ユーザーイベントは既存の保険に任せる
+        scheduleProcessDate(e);
+      }
+    } catch (err) {
+      if (window.__dbg && typeof window.__dbg.dbg === 'function') window.__dbg.dbg('change handler error: ' + err);
+      scheduleProcessDate(e);
+    }
+  });
 }
 
 /* ---------- Form submit ---------- */
