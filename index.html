@@ -154,6 +154,7 @@
 /* Full index.html script that preserves existing features and adds the iPad/date fixes:
    - closedDatesLoaded flag to avoid race alerts
    - picker-safe date handling using focus/blur + debounce + dedupe
+   - non-modal toast for date errors to avoid repeated native alert loops on iPad
    - initial load will not auto-restore session date (initial state stays empty)
 */
 
@@ -179,6 +180,63 @@ let closedDatesLoaded = false;
 let allowDinnerOnSelectedDate = false;
 let selectedTime = "";
 let unsubscribe = null;
+
+/* ---------- Non-modal date error (toast) ---------- */
+// Prevent repeated modal alerts and avoid alert/confirm loops on iPad.
+// Usage: showDateError(message, ymd);
+// ymd should be "YYYY-MM-DD" when available to suppress repeated identical messages.
+let lastAlertedDate = ""; // 'YYYY-MM-DD' of last shown date error
+function showDateError(message, ymd) {
+  try {
+    // If same date was recently alerted, skip
+    if (ymd && lastAlertedDate === ymd) return;
+    if (ymd) lastAlertedDate = ymd;
+
+    // Create toast if missing
+    let t = document.getElementById('dateErrorToast');
+    if (!t) {
+      t = document.createElement('div');
+      t.id = 'dateErrorToast';
+      t.style.position = 'fixed';
+      t.style.left = '50%';
+      t.style.top = '20%';
+      t.style.transform = 'translateX(-50%)';
+      t.style.background = 'rgba(0,0,0,0.85)';
+      t.style.color = '#fff';
+      t.style.padding = '12px 18px';
+      t.style.borderRadius = '8px';
+      t.style.zIndex = 9999999;
+      t.style.boxShadow = '0 6px 20px rgba(0,0,0,0.4)';
+      t.style.fontSize = '15px';
+      t.style.maxWidth = '80%';
+      t.style.textAlign = 'center';
+      t.style.transition = 'opacity 300ms';
+      t.style.opacity = '0';
+      document.body.appendChild(t);
+    }
+    t.textContent = message;
+    t.style.display = 'block';
+    // trigger fade-in
+    requestAnimationFrame(() => { t.style.opacity = '1'; });
+
+    // Clear existing timers
+    if (t._hideTimer) clearTimeout(t._hideTimer);
+    if (t._resetLastTimer) clearTimeout(t._resetLastTimer);
+
+    // Hide after 4s
+    t._hideTimer = setTimeout(() => {
+      t.style.opacity = '0';
+      setTimeout(() => { t.style.display = 'none'; }, 350);
+    }, 4000);
+
+    // Allow same-date alerts after 6s
+    t._resetLastTimer = setTimeout(() => { lastAlertedDate = ""; }, 6000);
+  } catch (e) {
+    // fallback to alert if DOM ops fail
+    try { alert(message); } catch (e) { /* ignore */ }
+    lastAlertedDate = "";
+  }
+}
 
 /* ---------- Robust date utilities ---------- */
 function normalizeDateInputValue(inputEl) {
@@ -252,7 +310,6 @@ function isDateClosed(input) {
       if (typeof cd === 'string' && cd.indexOf(ymd) === 0) return true;
     }
   } catch (e) {
-    // 何らかの理由で closedDatesSet が未定義/不正でもデフォルト判定は既に行っているので安全
     if (window.__dbg && typeof window.__dbg.dbg === 'function') window.__dbg.dbg('isDateClosed check error: ' + e);
   }
 
@@ -541,8 +598,10 @@ function processNormalizedDate(normalized, userInitiated) {
   }
 
   if (isDateClosed(normalized)) {
+    // show non-modal toast instead of repeated native alert
+    showDateError("選択した日は休業日のため予約できません。", normalized);
     if (closedDatesLoaded && userInitiated) {
-      alert("選択した日は休業日のため予約できません。");
+      // keep UI consistent: clear date input only when user intentionally selected
       try { dateElement.value = ''; } catch(e) {}
     } else {
       if (window.__dbg && typeof window.__dbg.dbg === 'function') window.__dbg.dbg('closed but suppressed (loaded=' + closedDatesLoaded + ', user=' + !!userInitiated + ') -> ' + normalized);
@@ -612,7 +671,7 @@ if (dateElement) {
         scheduleProcessDate(e);
         return;
       }
-  
+
       // ユーザー操作（Done ボタン含む）であればピッカー開閉フラグに関係なく即座に処理
       if (e && e.isTrusted) {
         // 既存のタイマーがあればキャンセル
@@ -655,8 +714,8 @@ document.getElementById("resForm").onsubmit = async function(e) {
   if (tables.length === 0) { alert("テーブル番号を選択してください"); return; }
   if (time === 'dinner' && !dinnerTime) { alert('ディナーの時刻を選択してください。'); return; }
 
-  // final check on closed date at submit time (always enforced)
-  if (isDateClosed(date)) { alert("選択した日は休業日のため予約できません。"); return; }
+  // final check on closed date at submit time (always enforced) — use non-modal toast to notify
+  if (isDateClosed(date)) { showDateError("選択した日は休業日のため予約できません。", date); return; }
   if (time === 'dinner' && !allowDinnerOnSelectedDate) { alert("選択された日付ではディナーは受け付けていません。"); return; }
 
   const totalPeople = numAdult + numChild;
@@ -1192,7 +1251,7 @@ if (document.readyState === 'loading') {
     initExtrasHandlers();
     initQtyButtonHandlers();
     initDrinkButtons();
-    // Do not auto-restore session date here to keep initial page blank on load.
+    // Do not auto-restore session date here to keep initial blank state
     // loadSelectedDateFromSession();
   });
 } else {
