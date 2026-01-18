@@ -154,7 +154,7 @@
 /* Full index.html script that preserves existing features and adds the iPad/date fixes:
    - closedDatesLoaded flag to avoid race alerts
    - picker-safe date handling using focus/blur + debounce + dedupe
-   - non-modal toast for date errors to avoid repeated native alert loops on iPad
+   - persistent date-error toast: stays visible until user selects a different date (cleared automatically when a new OPEN date is chosen)
    - initial load will not auto-restore session date (initial state stays empty)
 */
 
@@ -181,25 +181,26 @@ let allowDinnerOnSelectedDate = false;
 let selectedTime = "";
 let unsubscribe = null;
 
-/* ---------- Non-modal date error (toast) ---------- */
-// Prevent repeated modal alerts and avoid alert/confirm loops on iPad.
-// Usage: showDateError(message, ymd);
-// ymd should be "YYYY-MM-DD" when available to suppress repeated identical messages.
-let lastAlertedDate = ""; // 'YYYY-MM-DD' of last shown date error
-function showDateError(message, ymd) {
-  try {
-    // If same date was recently alerted, skip
-    if (ymd && lastAlertedDate === ymd) return;
-    if (ymd) lastAlertedDate = ymd;
+/* ---------- Persistent date error (toast) ---------- */
+// showDateError(message, ymd, { persistent: boolean })
+// - persistent=true => toast remains visible until clearDateError() is called (or user selects different date)
+// - persistent=false (default) => transient toast (legacy behavior, auto-hide)
+let _dateErrorState = {
+  ymd: "",    // currently errored date (YYYY-MM-DD) if any
+  persistent: false
+};
 
-    // Create toast if missing
+function showDateError(message, ymd, opts = {}) {
+  const persistent = !!opts.persistent;
+  try {
+    // Create toast element if missing
     let t = document.getElementById('dateErrorToast');
     if (!t) {
       t = document.createElement('div');
       t.id = 'dateErrorToast';
       t.style.position = 'fixed';
       t.style.left = '50%';
-      t.style.top = '20%';
+      t.style.top = '18%';
       t.style.transform = 'translateX(-50%)';
       t.style.background = 'rgba(0,0,0,0.85)';
       t.style.color = '#fff';
@@ -208,34 +209,64 @@ function showDateError(message, ymd) {
       t.style.zIndex = 9999999;
       t.style.boxShadow = '0 6px 20px rgba(0,0,0,0.4)';
       t.style.fontSize = '15px';
-      t.style.maxWidth = '80%';
+      t.style.maxWidth = '85%';
       t.style.textAlign = 'center';
-      t.style.transition = 'opacity 300ms';
+      t.style.transition = 'opacity 200ms';
       t.style.opacity = '0';
+      t.style.display = 'none';
       document.body.appendChild(t);
     }
+
+    // If there's already a persistent error for this same date, do nothing
+    if (persistent && _dateErrorState.persistent && _dateErrorState.ymd === ymd) return;
+
+    // Set state
+    if (persistent && ymd) {
+      _dateErrorState.ymd = ymd;
+      _dateErrorState.persistent = true;
+    } else if (!persistent) {
+      // non-persistent: just show once (do not overwrite a persistent state)
+      if (_dateErrorState.persistent) return; // keep showing persistent until cleared
+    }
+
+    // Update text and show
     t.textContent = message;
     t.style.display = 'block';
-    // trigger fade-in
     requestAnimationFrame(() => { t.style.opacity = '1'; });
 
-    // Clear existing timers
-    if (t._hideTimer) clearTimeout(t._hideTimer);
-    if (t._resetLastTimer) clearTimeout(t._resetLastTimer);
+    // Clear any existing timers
+    if (t._hideTimer) { clearTimeout(t._hideTimer); t._hideTimer = null; }
 
-    // Hide after 4s
-    t._hideTimer = setTimeout(() => {
-      t.style.opacity = '0';
-      setTimeout(() => { t.style.display = 'none'; }, 350);
-    }, 4000);
-
-    // Allow same-date alerts after 6s
-    t._resetLastTimer = setTimeout(() => { lastAlertedDate = ""; }, 6000);
+    if (!persistent) {
+      // hide automatically after 4s for transient messages
+      t._hideTimer = setTimeout(() => {
+        t.style.opacity = '0';
+        setTimeout(() => { t.style.display = 'none'; }, 220);
+      }, 4000);
+    } else {
+      // persistent: keep displayed until clearDateError() called
+    }
   } catch (e) {
-    // fallback to alert if DOM ops fail
-    try { alert(message); } catch (e) { /* ignore */ }
-    lastAlertedDate = "";
+    // fallback to alert (should be rare)
+    try { alert(message); } catch (ee) { /* ignore */ }
+    if (persistent && ymd) {
+      _dateErrorState.ymd = ymd;
+      _dateErrorState.persistent = true;
+    }
   }
+}
+
+function clearDateError() {
+  try {
+    const t = document.getElementById('dateErrorToast');
+    if (t) {
+      if (t._hideTimer) { clearTimeout(t._hideTimer); t._hideTimer = null; }
+      t.style.opacity = '0';
+      setTimeout(() => { if (t) t.style.display = 'none'; }, 220);
+    }
+  } catch (e) { /* ignore */ }
+  _dateErrorState.ymd = "";
+  _dateErrorState.persistent = false;
 }
 
 /* ---------- Robust date utilities ---------- */
@@ -368,7 +399,6 @@ firebase.auth().onAuthStateChanged(user => {
     initQtyButtonHandlers();
     initDrinkButtons();
     // NOTE: Do not automatically restore session date here to keep initial state blank on load.
-    // loadSelectedDateFromSession(); // intentionally not called on startup
   } else {
     window.location.href = 'login.html';
   }
@@ -503,7 +533,7 @@ function updateDinnerOptionsVisibility() {
   }
 }
 
-/* ---------- Extras handlers ---------- */
+/* ---------- Extras handlers (preserved) ---------- */
 function initExtrasHandlers() {
   document.querySelectorAll('.extras-control .qty-btn').forEach(btn => {
     btn.addEventListener('click', (e) => {
@@ -542,7 +572,7 @@ function getExtrasForSave() {
   };
 }
 
-/* ---------- Defensive qty init ---------- */
+/* ---------- Defensive qty init (preserved) ---------- */
 function initQtyButtonHandlers() {
   document.querySelectorAll('.qty-btn').forEach(btn => {
     const clone = btn.cloneNode(true);
@@ -558,7 +588,7 @@ function initQtyButtonHandlers() {
   });
 }
 
-/* ---------- Drink buttons ---------- */
+/* ---------- Drink buttons (preserved) ---------- */
 function initDrinkButtons() {
   const display = document.getElementById('drinkCount');
   if (!display) return;
@@ -583,6 +613,7 @@ let _dateProcessTimer = null;
 
 function processNormalizedDate(normalized, userInitiated) {
   if (!normalized) {
+    // clear any transient state, but don't clear persistent errors (they persist until user selects another date)
     _lastNormalizedProcessed = "";
     selectedDateVal = "";
     allowDinnerOnSelectedDate = false;
@@ -598,21 +629,30 @@ function processNormalizedDate(normalized, userInitiated) {
   }
 
   if (isDateClosed(normalized)) {
-    // show non-modal toast instead of repeated native alert
-    showDateError("選択した日は休業日のため予約できません。", normalized);
+    // Show persistent error if user intentionally selected (or if called from submit)
+    // This error remains visible until user selects a different date that is OPEN
     if (closedDatesLoaded && userInitiated) {
-      // keep UI consistent: clear date input only when user intentionally selected
-      try { dateElement.value = ''; } catch(e) {}
+      showDateError("選択した日は休業日のため予約できません。", normalized, { persistent: true });
     } else {
-      if (window.__dbg && typeof window.__dbg.dbg === 'function') window.__dbg.dbg('closed but suppressed (loaded=' + closedDatesLoaded + ', user=' + !!userInitiated + ') -> ' + normalized);
+      // if not user initiated (programmatic), show transient only
+      showDateError("選択した日は休業日のため予約できません。", normalized, { persistent: false });
     }
-    _lastNormalizedProcessed = "";
-    selectedDateVal = "";
+
+    // Do NOT clear the date input automatically here — keep user's selection visible,
+    // but prevent listing and registration while the date remains a closed date.
+    _lastNormalizedProcessed = ""; // allow re-processing if user re-selects same date later
+    selectedDateVal = ""; // do not set as active selection for listing
     allowDinnerOnSelectedDate = false;
     renderTimeChoices(allowDinnerOnSelectedDate);
-    renderList('');
+    renderList(''); // show the "please select date" hint
     saveSelectedDateToSession('');
     return;
+  }
+
+  // If we reach here, date is OPEN — clear any persistent error and show list
+  if (_dateErrorState.persistent && _dateErrorState.ymd) {
+    // If the selected date differs from the errored one, clear the persistent error
+    clearDateError();
   }
 
   allowDinnerOnSelectedDate = isFriOrSat(normalized);
@@ -662,24 +702,20 @@ if (dateElement) {
   dateElement.addEventListener('input', scheduleProcessDate);
   dateElement.removeEventListener('change', scheduleProcessDate);
   dateElement.addEventListener('change', scheduleProcessDate);
-  // 追加: iPad の「完了（Done）」で change が発生した時に即処理する
+
+  // iPad の Done 押下で change が発生した時に即処理する（userInitiated が true）
   dateElement.addEventListener('change', function(e){
     try {
       const normalized = normalizeDateInputValue(dateElement);
-      // 値が空なら通常のスケジューラに任せる
       if (!normalized) {
         scheduleProcessDate(e);
         return;
       }
 
-      // ユーザー操作（Done ボタン含む）であればピッカー開閉フラグに関係なく即座に処理
       if (e && e.isTrusted) {
-        // 既存のタイマーがあればキャンセル
         if (_dateProcessTimer) { clearTimeout(_dateProcessTimer); _dateProcessTimer = null; }
-        // 少し遅らせて安定させたい場合は setTimeout(..., 0) にすることも可
         processNormalizedDate(normalized, true);
       } else {
-        // プログラム起因や非ユーザーイベントは既存の保険に任せる
         scheduleProcessDate(e);
       }
     } catch (err) {
@@ -714,8 +750,12 @@ document.getElementById("resForm").onsubmit = async function(e) {
   if (tables.length === 0) { alert("テーブル番号を選択してください"); return; }
   if (time === 'dinner' && !dinnerTime) { alert('ディナーの時刻を選択してください。'); return; }
 
-  // final check on closed date at submit time (always enforced) — use non-modal toast to notify
-  if (isDateClosed(date)) { showDateError("選択した日は休業日のため予約できません。", date); return; }
+  // final check on closed date at submit time (always enforced)
+  if (isDateClosed(date)) {
+    // persistent error until user selects another date
+    showDateError("選択した日は休業日のため予約できません。", date, { persistent: true });
+    return;
+  }
   if (time === 'dinner' && !allowDinnerOnSelectedDate) { alert("選択された日付ではディナーは受け付けていません。"); return; }
 
   const totalPeople = numAdult + numChild;
@@ -770,8 +810,8 @@ document.getElementById("resForm").onsubmit = async function(e) {
 };
 
 /* ---------- renderList & drawTable (preserved) ---------- */
+// (renderList/drawTable implementations unchanged)
 function renderList(selectedDate) {
-// (functions renderList, drawTable are preserved unchanged above)
   const area = document.getElementById("listArea");
   area.innerHTML = "";
 
@@ -1013,17 +1053,19 @@ function drawTable(res, selectedDate) {
   });
 }
 
-/* ---------- showEditForm (full implementation preserved) ---------- */
+/* ---------- showEditForm (preserved) ---------- */
 function showEditForm(info, date, timeKey, tNo, selectedDate) {
   const area = document.getElementById("listArea");
+  // full implementation preserved earlier in file (unchanged)
   area.innerHTML = "";
+  // ...
   const editDiv = document.createElement("div");
   editDiv.className = "edit-form";
-
+  
   const courseValue = info.course || "";
   const dinnerTimeValue = info.dinnerTime || "";
   const editDrinkValue = info.drinkCount || 0;
-
+  
   editDiv.innerHTML = `
     <h3 style="margin:7px 0 13px 7px;font-size:1.02em;color:#a77f50">
       変更（${date} ${tNo} ${timeKey}）
@@ -1116,9 +1158,9 @@ function showEditForm(info, date, timeKey, tNo, selectedDate) {
       <button class="act-btn" id="cancelEditBtn">キャンセル</button>
     </div>
   `;
-
+  
   area.appendChild(editDiv);
-
+  
   // populate editDinnerTime options if dinner
   if (timeKey === 'dinner') {
     populateDinnerTimeOptions('editDinnerTime', dinnerTimeValue);
@@ -1132,7 +1174,7 @@ function showEditForm(info, date, timeKey, tNo, selectedDate) {
       document.getElementById('editDrinkMinus').addEventListener('click', (ev) => { ev.preventDefault(); ev.stopPropagation(); const v=(parseInt(edDisplay.textContent||'0',10)||0); if (v>0) edDisplay.textContent = String(v-1); });
     }
   }
-
+  
   // render table checkboxes
   const editTableChoice = document.getElementById('editTableChoice');
   editTableChoice.innerHTML = "";
@@ -1144,7 +1186,7 @@ function showEditForm(info, date, timeKey, tNo, selectedDate) {
     const cap = document.createElement('span'); cap.className='cap-text'; cap.textContent = TABLE_CAPACITY[tNo] + '人';
     lab.appendChild(cap); span.appendChild(cb); span.appendChild(lab); editTableChoice.appendChild(span);
   });
-
+  
   // init edit extra counts (populate from info)
   if (document.getElementById('editChildPastaValue')) document.getElementById('editChildPastaValue').value = info.childPlatePastaCount || 0;
   if (document.getElementById('editChildPastaDisplay')) document.getElementById('editChildPastaDisplay').textContent = String(info.childPlatePastaCount || 0);
@@ -1155,7 +1197,7 @@ function showEditForm(info, date, timeKey, tNo, selectedDate) {
   const initialFunamori = Number(info.funamoriCount || 0) || (info.funamoriAmount ? Math.round((info.funamoriAmount||0)/10000) : 0);
   if (document.getElementById('editFunamoriValue')) document.getElementById('editFunamoriValue').value = initialFunamori;
   if (document.getElementById('editFunamoriDisplay')) document.getElementById('editFunamoriDisplay').textContent = String(initialFunamori);
-
+  
   editDiv.querySelectorAll('.edit-qty-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       const action = btn.dataset.action;
@@ -1163,9 +1205,9 @@ function showEditForm(info, date, timeKey, tNo, selectedDate) {
       editHandleCount(action, target);
     });
   });
-
+  
   document.getElementById('cancelEditBtn').onclick = () => renderList(selectedDate);
-
+  
   document.getElementById('saveEditBtn').onclick = async () => {
     const editName = document.getElementById("editName")?.value.trim() || "";
     const editTel = document.getElementById("editTel")?.value.trim() || "";
@@ -1174,26 +1216,26 @@ function showEditForm(info, date, timeKey, tNo, selectedDate) {
     const editNote = document.getElementById("editNote")?.value.trim() || "";
     const editCourse = (timeKey === 'dinner' && document.getElementById("editCourse")) ? (document.getElementById("editCourse").value || null) : null;
     const editExtra = timeKey === 'dinner' ? parseInt(document.getElementById("editDrinkCount")?.textContent||'0',10) : 0;
-
+  
     if (isNaN(editNumA) || isNaN(editNumC)) { alert("人数入力必須です"); return; }
     if (editName && !(/^[ァ-ヴー]+$/.test(editName))) { alert("名前はカタカナのみで入力してください"); return; }
     if (editTel && !(/^[0-9]+$/.test(editTel))) { alert("電話番号は数字のみで入力してください"); return; }
-
+  
     const tables = [];
     document.querySelectorAll("input[name=editTableNo]:checked").forEach(cb => tables.push(cb.value));
     if (tables.length === 0) { alert("テーブル番号を1つ以上選択してください"); return; }
-
+  
     if (isDateClosed(info.date)) { alert("編集対象の日付は休業日です。"); return; }
-
+  
     const totalPeople = (Number(editNumA) || 0) + (Number(editNumC) || 0);
     const totalCap = tables.reduce((sum, t) => sum + (Number(TABLE_CAPACITY[t] || 0)), 0);
     if (totalPeople > totalCap) { alert("選択されたテーブルより予約人数が上回っています。テーブルを追加選択してください。"); return; }
-
+  
     const eChildPasta = Number(document.getElementById('editChildPastaValue')?.value || 0);
     const eChildHamb = Number(document.getElementById('editChildHamburgerValue')?.value || 0);
     const eBday = Number(document.getElementById('editBirthdayValue')?.value || 0);
     const eFunamori = Number(document.getElementById('editFunamoriValue')?.value || 0);
-
+  
     try {
       await db.collection(RES_COLLECTION).doc(info._id).update({
         name: editName || null,
@@ -1214,10 +1256,10 @@ function showEditForm(info, date, timeKey, tNo, selectedDate) {
       alert('更新に失敗しました: ' + (err.message || err));
       return;
     }
-
+  
     renderList(selectedDate);
   };
-
+  
   function editHandleCount(action, editKey) {
     const display = document.getElementById(editKey + 'Display');
     const input = document.getElementById(editKey + 'Value');
@@ -1227,8 +1269,6 @@ function showEditForm(info, date, timeKey, tNo, selectedDate) {
     input.value = v;
     if (display) display.textContent = String(v);
   }
-}
-
 /* ---------- populateExtrasFromDoc ---------- */
 function populateExtrasFromDoc(docData) {
   const d = docData || {};
@@ -1251,15 +1291,12 @@ if (document.readyState === 'loading') {
     initExtrasHandlers();
     initQtyButtonHandlers();
     initDrinkButtons();
-    // Do not auto-restore session date here to keep initial blank state
-    // loadSelectedDateFromSession();
   });
 } else {
   populateDinnerTimeOptions();
   initExtrasHandlers();
   initQtyButtonHandlers();
   initDrinkButtons();
-  // loadSelectedDateFromSession();
 }
 </script>
 </body>
