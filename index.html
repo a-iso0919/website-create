@@ -7,7 +7,7 @@
   <!-- Google Fonts -->
   <link href="https://fonts.googleapis.com/css2?family=Zen+Kurenaido&family=Montserrat:wght@500;700;800;900&display=swap" rel="stylesheet">
   <!-- External stylesheet -->
-  <link rel="stylesheet" href="styles.css?v=1.3">
+  <link rel="stylesheet" href="styles.css?v=1.5">
   <!-- Firebase setup (compat) -->
   <script src="https://www.gstatic.com/firebasejs/10.10.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.10.0/firebase-firestore-compat.js"></script>
@@ -30,11 +30,11 @@
       </label>
       <label>
         大人人数:
-        <input type="number" id="numAdult" required min="0" max="10" value="1">
+        <input type="number" id="numAdult" required min="0" max="20" value="0">
       </label>
       <label>
         子ども人数:
-        <input type="number" id="numChild" required min="0" max="10" value="0">
+        <input type="number" id="numChild" required min="0" max="20" value="0">
       </label>
       <label style="grid-column: 1/-1;">
         テーブル番号（複数選択可）:
@@ -51,6 +51,14 @@
         <fieldset style="border-radius:10px;padding:10px;background:#fff7ea;border:1px solid #efdfc0;">
           <legend style="font-weight:700;color:#6b4423">ディナーコース選択</legend>
 
+          <!-- 時刻プルダウン（17:30 - 20:30、30分刻み） -->
+          <label style="display:block;margin-bottom:8px;">
+            時刻を選択:
+            <select id="dinnerTime">
+              <option value="">（時刻を選択してください）</option>
+            </select>
+          </label>
+
           <label style="margin-bottom:8px;">
             コース選択:
             <select id="dinnerCourse">
@@ -64,17 +72,19 @@
             </select>
           </label>
 
-          <div style="display:flex;align-items:center;gap:12px;">
+          <div style="display:flex;align-items:center;gap:12px;margin-top:8px;">
             <div style="flex:1">
-              <div style="font-weight:600;color:#6b4423">2000円（中学生以下のみ）</div>
-              <div style="font-size:0.9em;color:#6b4423">※該当人数分を選択してください</div>
+              <!-- 表示名を「飲み放題 ¥2,500」に変更 -->
+              <div style="font-weight:600;color:#6b4423">飲み放題 ¥2,500</div>
+              <div style="font-size:0.9em;color:#6b4423">※該当数を選択してください</div>
             </div>
             <div style="display:flex;align-items:center;gap:6px;">
-              <button type="button" id="extraMinus" class="act-btn" style="padding:6px 10px;">−</button>
-              <div id="extraCount" style="min-width:36px;text-align:center;font-weight:700">0</div>
-              <button type="button" id="extraPlus" class="act-btn" style="padding:6px 10px;">＋</button>
+              <button type="button" id="drinkMinus" class="act-btn" style="padding:6px 10px;">−</button>
+              <div id="drinkCount" style="min-width:36px;text-align:center;font-weight:700">0</div>
+              <button type="button" id="drinkPlus" class="act-btn" style="padding:6px 10px;">＋</button>
             </div>
           </div>
+
         </fieldset>
       </div>
       <!-- ディナー専用オプション ここまで -->
@@ -173,6 +183,11 @@
       renderList();
       // load臨時休業日（Firestore の closed_dates コレクション）
       loadClosedDates();
+      // init dinner time options & handlers
+      populateDinnerTimeOptions();
+      initExtrasHandlers();
+      initQtyButtonHandlers();
+      initDrinkButtons(); // new
     } else {
       window.location.href = 'login.html';
     }
@@ -236,6 +251,29 @@
     if (isNaN(base)) return null;
     const expireDate = new Date(base.getTime() + days * 24 * 60 * 60 * 1000);
     return firebase.firestore.Timestamp.fromDate(expireDate);
+  }
+
+  // Populate dinnerTime select with 30-min steps 17:30-20:30
+  function populateDinnerTimeOptions() {
+    const sel = document.getElementById('dinnerTime');
+    if (!sel) return;
+    sel.innerHTML = '<option value="">（時刻を選択してください）</option>';
+    const times = [];
+    for (let h = 17, m = 30; ; ) {
+      const hh = String(h).padStart(2,'0');
+      const mm = String(m).padStart(2,'0');
+      times.push(`${hh}:${mm}`);
+      m += 30;
+      if (m >= 60) { m -= 60; h += 1; }
+      if (h > 20 || (h === 20 && m > 30)) break;
+    }
+    if (!times.includes('20:30')) times.push('20:30');
+    times.forEach(t => {
+      const opt = document.createElement('option');
+      opt.value = t;
+      opt.textContent = t;
+      sel.appendChild(opt);
+    });
   }
 
   // top-right カレンダー編集ボタン遷移
@@ -334,37 +372,45 @@
   function updateDinnerOptionsVisibility() {
     const container = document.getElementById("dinnerOptions");
     const select = document.getElementById("dinnerCourse");
-    const extraCountEl = document.getElementById("extraCount");
-    const plus = document.getElementById("extraPlus");
-    const minus = document.getElementById("extraMinus");
+    const dinnerTimeSel = document.getElementById("dinnerTime");
     if (!container) return;
     // Show dinner options only if dinner is selected AND dinner is allowed on selected date
     if (selectedTime === 'dinner' && allowDinnerOnSelectedDate) {
       container.style.display = 'block';
       if (select) select.disabled = false;
-      if (plus) plus.disabled = false;
-      if (minus) minus.disabled = false;
+      if (dinnerTimeSel) dinnerTimeSel.disabled = false;
     } else {
       container.style.display = 'none';
       if (select) { select.value = ""; select.disabled = true; }
-      if (extraCountEl) extraCountEl.textContent = '0';
-      if (plus) plus.disabled = true;
-      if (minus) minus.disabled = true;
+      if (dinnerTimeSel) { dinnerTimeSel.value = ""; dinnerTimeSel.disabled = true; }
+      // reset drink count display when hiding
+      const dc = document.getElementById('drinkCount');
+      if (dc) dc.textContent = '0';
     }
   }
 
-  // extra +/- handlers
-  document.addEventListener('click', function(e){
-    if (e.target && e.target.id === 'extraPlus') {
-      const el = document.getElementById('extraCount');
-      let v = parseInt(el.textContent || '0', 10);
-      el.textContent = String(v + 1);
-    } else if (e.target && e.target.id === 'extraMinus') {
-      const el = document.getElementById('extraCount');
-      let v = parseInt(el.textContent || '0', 10);
-      if (v > 0) el.textContent = String(v - 1);
+  // ドリンク（飲み放題） +/- ハンドラ初期化
+  function initDrinkButtons() {
+    const plus = document.getElementById('drinkPlus');
+    const minus = document.getElementById('drinkMinus');
+    const display = document.getElementById('drinkCount');
+    if (plus) {
+      plus.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const v = parseInt(display.textContent || '0', 10) || 0;
+        display.textContent = String(v + 1);
+      });
     }
-  });
+    if (minus) {
+      minus.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const v = parseInt(display.textContent || '0', 10) || 0;
+        if (v > 0) display.textContent = String(v - 1);
+      });
+    }
+  }
 
   // 日付選択で一覧も絞り込み（休業日チェック + 金/土以外はディナー非表示）
   let selectedDateVal = "";
@@ -425,8 +471,9 @@
   
     // ディナー追加データ
     const course = document.getElementById("dinnerCourse") ? document.getElementById("dinnerCourse").value || null : null;
-    const extraUnder15 = document.getElementById("extraCount") ? parseInt(document.getElementById("extraCount").textContent || '0', 10) : 0;
-  
+    const dinnerTime = document.getElementById("dinnerTime") ? document.getElementById("dinnerTime").value || null : null;
+    const drinkCount = document.getElementById("drinkCount") ? parseInt(document.getElementById("drinkCount").textContent||'0',10) : 0;
+
     // 必須項目チェック
     if (!date || !time || isNaN(numAdult) || isNaN(numChild)) {
       alert("日付・時間・人数は必須です");
@@ -443,6 +490,14 @@
     if (tables.length === 0) {
       alert("テーブル番号を選択してください");
       return;
+    }
+
+    // If dinner selected, ensure dinnerTime chosen
+    if (time === 'dinner') {
+      if (!dinnerTime) {
+        alert('ディナーの時刻を選択してください。');
+        return;
+      }
     }
 
     // New: disallow booking on closed date just before saving (defensive)
@@ -467,9 +522,11 @@
   
     // 重複チェック
     try {
-      const snapshot = await db.collection(RES_COLLECTION)
-        .where("date", "==", date).where("time", "==", time)
-        .get();
+      let q = db.collection(RES_COLLECTION)
+        .where("date", "==", date).where("time", "==", time);
+      // If dinner, narrow by dinnerTime
+      if (time === 'dinner' && dinnerTime) q = q.where('dinnerTime', '==', dinnerTime);
+      const snapshot = await q.get();
       const overlap = snapshot.docs.some(doc => {
         const r = doc.data();
         return (r.tables||[]).some(t=>tables.includes(t));
@@ -491,7 +548,8 @@
       await db.collection(RES_COLLECTION).add(Object.assign({
         date, time, numAdult, numChild, tables, name, tel, note,
         course: course || null,
-        extraUnder15: extraUnder15 || 0,
+        dinnerTime: dinnerTime || null,
+        drinkCount: drinkCount || 0,
         createdAt: firebase.firestore.FieldValue.serverTimestamp(),
         expireAt: expireAt
       }, extras));
@@ -507,7 +565,6 @@
     selectedTime = "";
     allowDinnerOnSelectedDate = false;
     updateDinnerOptionsVisibility();
-    document.getElementById("extraCount").textContent = '0';
     if (typeof populateExtrasFromDoc === 'function') populateExtrasFromDoc({});
     renderTableChoices();
     renderTimeChoices(allowDinnerOnSelectedDate);
@@ -560,8 +617,8 @@
         if (!grouped[r.date][r.time]) grouped[r.date][r.time] = {};
         grouped[r.date][r.time][tableNo] = {
           numAdult: r.numAdult, numChild: r.numChild, name: r.name, tel: r.tel,
-          childPlate: r.childPlate, bdayPlate: r.bdayPlate, note: r.note,
-          course: r.course || null, extraUnder15: r.extraUnder15 || 0,
+          note: r.note, course: r.course || null, dinnerTime: r.dinnerTime || null,
+          drinkCount: r.drinkCount || 0,
           childPlatePastaCount: r.childPlatePastaCount || 0,
           childPlateHamburgerCount: r.childPlateHamburgerCount || 0,
           birthdayPlateCount: r.birthdayPlateCount || 0,
@@ -595,11 +652,11 @@
         const table = document.createElement("table");
         const thead = document.createElement("thead");
 
-        // ヘッダ：ディナーなら「コース」「中学生以下2000円」を含める
+        // ヘッダ：ディナーなら「時間」「コース」を含める
         if (timeKey === 'dinner') {
           thead.innerHTML =
             "<tr>" +
-              "<th>テーブル</th><th>キャパ</th><th>大人</th><th>子ども</th><th>名前</th><th>電話番号</th><th>コース</th><th>中学生以下2000円</th><th>備考</th><th>操作</th>" +
+              "<th>テーブル</th><th>キャパ</th><th>大人</th><th>子ども</th><th>時間</th><th>コース</th><th>名前</th><th>電話番号</th><th>備考</th><th>操作</th>" +
             "</tr>";
         } else {
           thead.innerHTML =
@@ -663,6 +720,14 @@
               tr.appendChild(tdTel);
 
               if (timeKey === 'dinner') {
+                const tdTime = document.createElement("td");
+                tdTime.className = "time-cell merged-cell";
+                tdTime.textContent = info.dinnerTime || "";
+                tdTime.rowSpan = rowspan;
+                tdTime.style.verticalAlign = "middle";
+                tdTime.style.textAlign = "center";
+                tr.appendChild(tdTime);
+
                 const tdCourse = document.createElement("td");
                 tdCourse.className = "course-cell merged-cell";
                 tdCourse.textContent = info.course || "";
@@ -670,21 +735,13 @@
                 tdCourse.style.verticalAlign = "middle";
                 tdCourse.style.textAlign = "center";
                 tr.appendChild(tdCourse);
-
-                const tdExtra = document.createElement("td");
-                tdExtra.className = "extra-cell merged-cell";
-                tdExtra.textContent = (info.extraUnder15 && info.extraUnder15 > 0) ? `${info.extraUnder15}名` : "";
-                tdExtra.rowSpan = rowspan;
-                tdExtra.style.verticalAlign = "middle";
-                tdExtra.style.textAlign = "center";
-                tr.appendChild(tdExtra);
               }
 
               const tdNote = document.createElement("td");
               tdNote.className = "note-cell merged-cell";
               let noteStr = [];
-              if (info.childPlate) noteStr.push("お子様プレート");
-              if (info.bdayPlate) noteStr.push("誕生日プレート");
+              // include drinkCount as "飲み放題×N" if >0
+              if (info.drinkCount && info.drinkCount > 0) noteStr.push(`飲み放題×${info.drinkCount}`);
               if (info.childPlatePastaCount && info.childPlatePastaCount > 0) noteStr.push(`パスタ x${info.childPlatePastaCount}`);
               if (info.childPlateHamburgerCount && info.childPlateHamburgerCount > 0) noteStr.push(`ハンバーグ x${info.childPlateHamburgerCount}`);
               if (info.birthdayPlateCount && info.birthdayPlateCount > 0) noteStr.push(`誕生日プレート x${info.birthdayPlateCount}`);
@@ -761,7 +818,8 @@
     editDiv.className = "edit-form";
 
     const courseValue = info.course || "";
-    const extraValue = info.extraUnder15 || 0;
+    const dinnerTimeValue = info.dinnerTime || "";
+    const editDrinkValue = info.drinkCount || 0;
 
     // Build HTML: includes table-choice area and editable extras (edit-prefixed IDs)
     editDiv.innerHTML = `
@@ -784,7 +842,18 @@
         <input type="number" id="editNumC" value="${info.numChild}" min="0" max="10" required>
       </label>
 
+      <div class="edit-form-checks" style="margin-top:6px;">
+        <label style="margin-right:8px;"><input type="checkbox" id="editChildPlate" ${info.childPlate ? "checked" : ""}>お子様プレート</label>
+        <label><input type="checkbox" id="editBdayPlate" ${info.bdayPlate ? "checked" : ""}>誕生日プレート</label>
+      </div>
+
       ${timeKey === 'dinner' ? `
+      <label style="margin-top:10px;">時刻:
+        <select id="editDinnerTime">
+          <option value="">（時刻を選択してください）</option>
+        </select>
+      </label>
+
       <label style="margin-top:10px;">コース:
         <select id="editCourse">
           <option value="">（コースの種類を選択してください）</option>
@@ -797,11 +866,11 @@
         </select>
       </label>
 
-      <label style="margin-top:8px;">2000円（中学生以下のみ）:
+      <label style="margin-top:8px;">飲み放題（¥2,500）:
         <div style="display:flex;align-items:center;gap:8px;">
-          <button type="button" class="act-btn" id="editExtraMinus">−</button>
-          <div id="editExtraCount" style="min-width:36px;text-align:center;font-weight:700">${extraValue}</div>
-          <button type="button" class="act-btn" id="editExtraPlus">＋</button>
+          <button type="button" class="act-btn" id="editDrinkMinus">−</button>
+          <div id="editDrinkCount" style="min-width:36px;text-align:center;font-weight:700">${editDrinkValue}</div>
+          <button type="button" class="act-btn" id="editDrinkPlus">＋</button>
         </div>
       </label>
       ` : ``}
@@ -868,6 +937,45 @@
 
     area.appendChild(editDiv);
 
+    // populate editDinnerTime options if dinner
+    if (timeKey === 'dinner') {
+      const sel = document.getElementById('editDinnerTime');
+      if (sel) {
+        sel.innerHTML = '<option value="">（時刻を選択してください）</option>';
+        const times = [];
+        for (let h=17, m=30; ; ) {
+          const hh = String(h).padStart(2,'0');
+          const mm = String(m).padStart(2,'0');
+          times.push(`${hh}:${mm}`);
+          m += 30;
+          if (m >= 60) { m -= 60; h += 1; }
+          if (h > 20 || (h === 20 && m > 30)) break;
+        }
+        if (!times.includes('20:30')) times.push('20:30');
+        times.forEach(t => {
+          const opt = document.createElement('option');
+          opt.value = t;
+          opt.textContent = t;
+          if (t === dinnerTimeValue) opt.selected = true;
+          sel.appendChild(opt);
+        });
+      }
+
+      // init edit drink +/- handlers
+      const edPlus = document.getElementById('editDrinkPlus');
+      const edMinus = document.getElementById('editDrinkMinus');
+      const edDisplay = document.getElementById('editDrinkCount');
+      if (edPlus) edPlus.addEventListener('click', (ev) => {
+        ev.preventDefault(); ev.stopPropagation();
+        edDisplay.textContent = String((parseInt(edDisplay.textContent||'0',10)||0) + 1);
+      });
+      if (edMinus) edMinus.addEventListener('click', (ev) => {
+        ev.preventDefault(); ev.stopPropagation();
+        const v = (parseInt(edDisplay.textContent||'0',10)||0);
+        if (v > 0) edDisplay.textContent = String(v - 1);
+      });
+    }
+
     // render table checkboxes in edit form
     const editTableChoice = document.getElementById('editTableChoice');
     editTableChoice.innerHTML = "";
@@ -913,21 +1021,6 @@
       });
     });
 
-    // wire editExtra +/- (dinner)
-    if (timeKey === 'dinner') {
-      const editExtraPlus = document.getElementById('editExtraPlus');
-      const editExtraMinus = document.getElementById('editExtraMinus');
-      if (editExtraPlus) editExtraPlus.onclick = () => {
-        const el = document.getElementById('editExtraCount');
-        el.textContent = String(parseInt(el.textContent||'0',10) + 1);
-      };
-      if (editExtraMinus) editExtraMinus.onclick = () => {
-        const el = document.getElementById('editExtraCount');
-        const v = parseInt(el.textContent||'0',10);
-        if (v > 0) el.textContent = String(v - 1);
-      };
-    }
-
     // save / cancel handlers
     document.getElementById('cancelEditBtn').onclick = () => renderList(selectedDate);
 
@@ -940,7 +1033,8 @@
       const editBdayPlate = document.getElementById("editBdayPlate") ? document.getElementById("editBdayPlate").checked : false;
       const editNote = document.getElementById("editNote")?.value.trim() || "";
       const editCourse = (timeKey === 'dinner' && document.getElementById("editCourse")) ? (document.getElementById("editCourse").value || null) : null;
-      const editExtra = timeKey === 'dinner' ? parseInt(document.getElementById("editExtraCount")?.textContent||'0',10) : 0;
+      const editDinnerTime = (timeKey === 'dinner' && document.getElementById("editDinnerTime")) ? (document.getElementById("editDinnerTime").value || null) : null;
+      const editDrink = (timeKey === 'dinner' && document.getElementById("editDrinkCount")) ? (parseInt(document.getElementById("editDrinkCount").textContent||'0',10)||0) : 0;
 
       if (editNumA === "" || editNumC === "") { alert("人数入力必須です"); return; }
       if (editName && !(/^[ァ-ヴー]+$/.test(editName))) { alert("名前はカタカナのみで入力してください"); return; }
@@ -961,7 +1055,7 @@
       const totalPeople = (Number(editNumA) || 0) + (Number(editNumC) || 0);
       const totalCap = tables.reduce((sum, t) => sum + (Number(TABLE_CAPACITY[t] || 0)), 0);
       if (totalPeople > totalCap) {
-        alert("選択されたテーブルより予約人数が上回っています。テーブルを追加選択してください。。");
+        alert("選択されたテーブルより予約人数が上回っています。テーブルを追加選択してください。");
         return;
       }
 
@@ -970,9 +1064,6 @@
       const eChildHamb = Number(document.getElementById('editChildHamburgerValue')?.value || 0);
       const eBday = Number(document.getElementById('editBirthdayValue')?.value || 0);
       const eFunamori = Number(document.getElementById('editFunamoriValue')?.value || 0);
-
-      // compute expireAt from info.date (if you allow editing the date in future, adjust accordingly)
-      const newExpireAt = computeExpireAtFromDate(info.date, 7);
 
       try {
         await db.collection(RES_COLLECTION).doc(info._id).update({
@@ -984,13 +1075,13 @@
           bdayPlate: editBdayPlate,
           note: editNote,
           course: editCourse || null,
-          extraUnder15: editExtra || 0,
+          dinnerTime: editDinnerTime || null,
+          drinkCount: editDrink || 0,
           tables: tables,
           childPlatePastaCount: eChildPasta,
           childPlateHamburgerCount: eChildHamb,
           birthdayPlateCount: eBday,
-          funamoriCount: eFunamori,
-          expireAt: newExpireAt
+          funamoriCount: eFunamori
         });
       } catch (err) {
         console.error('Update failed', err);
@@ -1071,11 +1162,40 @@
     updateExtrasPreview();
   }
 
+  // ---------- defensive qty button init (remove delegated handlers and bind per button) ----------
+  function initQtyButtonHandlers() {
+    // remove/replace to clear old listeners (defensive)
+    document.querySelectorAll('.qty-btn').forEach(btn => {
+      const clone = btn.cloneNode(true);
+      btn.parentNode.replaceChild(clone, btn);
+    });
+    // bind handlers
+    document.querySelectorAll('.qty-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const action = btn.dataset.action;
+        const target = btn.dataset.target;
+        if (action && target && typeof handleCount === 'function') {
+          handleCount(action === 'increase' ? 'increase' : 'decrease', target);
+        }
+      });
+    });
+  }
+
   // page init
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initExtrasHandlers);
+    document.addEventListener('DOMContentLoaded', () => {
+      initExtrasHandlers();
+      initQtyButtonHandlers();
+      populateDinnerTimeOptions();
+      initDrinkButtons();
+    });
   } else {
     initExtrasHandlers();
+    initQtyButtonHandlers();
+    populateDinnerTimeOptions();
+    initDrinkButtons();
   }
 </script>
 </body>
