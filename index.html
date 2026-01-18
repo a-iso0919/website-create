@@ -151,6 +151,89 @@
   </div>
 
 <script>
+  (function(){
+  // create floating debug panel
+  const panel = document.createElement('div');
+  panel.id = 'debugPanel';
+  panel.style.position = 'fixed';
+  panel.style.right = '8px';
+  panel.style.top = '8px';
+  panel.style.zIndex = 999999;
+  panel.style.background = 'rgba(0,0,0,0.75)';
+  panel.style.color = '#fff';
+  panel.style.padding = '8px 10px';
+  panel.style.fontSize = '13px';
+  panel.style.borderRadius = '8px';
+  panel.style.maxWidth = '46vw';
+  panel.style.maxHeight = '60vh';
+  panel.style.overflow = 'auto';
+  panel.style.boxShadow = '0 6px 20px rgba(0,0,0,0.4)';
+  panel.innerHTML = '<strong>DEBUG</strong><br><div id="dbgMsgs"></div>';
+  document.body.appendChild(panel);
+
+  function dbg(msg) {
+    const c = document.getElementById('dbgMsgs');
+    const time = new Date().toLocaleTimeString();
+    c.innerHTML = `<div style="margin-bottom:6px">[${time}] ${msg}</div>` + c.innerHTML;
+  }
+
+  // show that debug panel loaded
+  dbg('debug panel loaded');
+
+  // global error catcher -> show in panel
+  window.addEventListener('error', function(ev){
+    dbg('ERROR: ' + (ev && ev.message ? ev.message : String(ev)));
+  });
+  window.addEventListener('unhandledrejection', function(ev){
+    dbg('UNHANDLED PROMISE REJECTION: ' + (ev && ev.reason ? String(ev.reason) : String(ev)));
+  });
+
+  // show date.value whenever changed (safe even on iPad)
+  const dateEl = document.getElementById('date');
+  if (dateEl) {
+    const showDate = () => {
+      dbg('date.value = "' + (dateEl.value || '') + '"');
+      // try call parseYMD/isDateClosed if defined
+      if (typeof parseYMD === 'function') {
+        try {
+          const parsed = parseYMD(dateEl.value);
+          dbg('parseYMD -> ' + (parsed ? parsed.toString() : 'null'));
+        } catch(e){ dbg('parseYMD threw: ' + e); }
+      } else dbg('parseYMD not defined');
+      if (typeof isDateClosed === 'function') {
+        try { dbg('isDateClosed -> ' + (isDateClosed(dateEl.value) ? 'true' : 'false')); } catch(e){ dbg('isDateClosed threw: ' + e); }
+      } else dbg('isDateClosed not defined');
+    };
+    dateEl.addEventListener('change', showDate);
+    // also show initial
+    setTimeout(showDate, 500);
+  } else {
+    dbg('date element not found');
+  }
+
+  // expose a helper to print closedDatesSet contents when they are loaded
+  window.__dbg_printClosedDates = function(){
+    try {
+      if (typeof closedDatesSet !== 'undefined') {
+        const arr = Array.from(closedDatesSet || []);
+        dbg('closedDatesSet size=' + arr.length + ' sample: ' + JSON.stringify(arr.slice(0,30)));
+      } else {
+        dbg('closedDatesSet is undefined');
+      }
+    } catch(e){ dbg('printClosedDates error: ' + e); }
+  };
+
+  // Also indicate when Firebase scripts are present
+  dbg('firebase:' + (typeof firebase !== 'undefined' ? 'ok' : 'MISSING'));
+  dbg('firestore:' + (typeof firebase !== 'undefined' && firebase.firestore ? 'ok' : 'MISSING'));
+
+  // optional: attempt to fetch index.html itself to detect network error
+  fetch(window.location.href, {cache: 'no-store'}).then(res=>{
+    dbg('Self-fetch status: ' + res.status + ' ' + res.statusText);
+  }).catch(err=>{
+    dbg('Self-fetch failed: ' + err);
+  });
+
   // Firebase config (existing)
   const firebaseConfig = {
     apiKey: "AIzaSyCIjAeYqS2Bbw60qU6ZUn2q04TlMFD5fdg",
