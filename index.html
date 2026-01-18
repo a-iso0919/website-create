@@ -313,15 +313,29 @@ function isDefaultClosed(dateObj) {
 function isDateClosed(input) {
   if (!input) return false;
   let dateObj = null;
-  if (input instanceof Date) dateObj = new Date(input.getFullYear(), input.getMonth(), input.getDate());
-  else dateObj = parseYMD(input);
-  if (!dateObj) return false;
-  if (isDefaultClosed(dateObj)) return true;
-  const ymd = `${dateObj.getFullYear()}-${String(dateObj.getMonth()+1).padStart(2,'0')}-${String(dateObj.getDate()).padStart(2,'0')}`;
-  if (closedDatesSet.has(ymd)) return true;
-  for (const cd of closedDatesSet) {
-    if (typeof cd === 'string' && cd.indexOf(ymd) === 0) return true;
+  if (input instanceof Date) {
+    dateObj = new Date(input.getFullYear(), input.getMonth(), input.getDate());
+  } else {
+    dateObj = parseYMD(input);
   }
+  if (!dateObj) return false;
+
+  // 1) 固定ルール：毎週日曜、かつ第2/第4月曜
+  if (isDefaultClosed(dateObj)) return true;
+
+  // 2) Firestore 側の closed_dates と照合（closedDatesSet は既存のセット）
+  const ymd = `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${String(dateObj.getDate()).padStart(2, '0')}`;
+  try {
+    if (closedDatesSet && typeof closedDatesSet.has === 'function' && closedDatesSet.has(ymd)) return true;
+    // 互換性のため、closedDatesSet に範囲や接頭辞形式のエントリがある場合も考慮
+    for (const cd of closedDatesSet) {
+      if (typeof cd === 'string' && cd.indexOf(ymd) === 0) return true;
+    }
+  } catch (e) {
+    // 何らかの理由で closedDatesSet が未定義/不正でもデフォルト判定は既に行っているので安全
+    if (window.__dbg && typeof window.__dbg.dbg === 'function') window.__dbg.dbg('isDateClosed check error: ' + e);
+  }
+
   return false;
 }
 
