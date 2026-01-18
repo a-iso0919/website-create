@@ -151,13 +151,11 @@
   </div>
 
 <script>
-/* Complete index.html script
-   - preserves existing functionality (showEditForm, edit flow)
-   - adds iPad-safe date handling:
-     * closedDatesLoaded flag to prevent race alerts
-     * focus/blur + debounce processing so transient picker events don't trigger validation
-     * initial load keeps date blank (no automatic session restore)
-*/
+/* Full index.html script that preserves existing features and adds the iPad/date fixes:
+   - closedDatesLoaded flag to avoid race alerts
+   - onDateChanged shows alert only when closedDatesLoaded && user-initiated (e.isTrusted)
+   - initial load will not auto-restore session date (initial state stays empty)
+   Other existing functions (showEditForm, etc.) are preserved as before. */
 
 /* ---------- DEBUG PANEL (optional) ---------- */
 (function createDebugPanel(){
@@ -197,22 +195,22 @@
       dbg('UNHANDLED PROMISE REJECTION: ' + (ev && ev.reason ? String(ev.reason) : String(ev)));
     });
 
-    const dateElDbg = document.getElementById('date');
-    if (dateElDbg) {
+    const dateEl = document.getElementById('date');
+    if (dateEl) {
       const showDate = () => {
-        dbg('date.value = "' + (dateElDbg.value || '') + '"');
+        dbg('date.value = "' + (dateEl.value || '') + '"');
         if (typeof normalizeDateInputValue === 'function') {
-          try { dbg('normalized -> "' + normalizeDateInputValue(dateElDbg) + '"'); } catch(e) { dbg('normalize threw: ' + e); }
+          try { dbg('normalized -> "' + normalizeDateInputValue(dateEl) + '"'); } catch(e) { dbg('normalize threw: ' + e); }
         }
         if (typeof parseYMD === 'function') {
           try {
-            const parsed = parseYMD(dateElDbg.value || normalizeDateInputValue(dateElDbg));
+            const parsed = parseYMD(dateEl.value || normalizeDateInputValue(dateEl));
             dbg('parseYMD -> ' + (parsed ? parsed.toString() : 'null'));
           } catch(e){ dbg('parseYMD threw: ' + e); }
         } else dbg('parseYMD not defined');
       };
-      dateElDbg.addEventListener('change', showDate);
-      dateElDbg.addEventListener('input', showDate);
+      dateEl.addEventListener('change', showDate);
+      dateEl.addEventListener('input', showDate);
       setTimeout(showDate, 500);
     } else {
       dbg('date element not found');
@@ -239,7 +237,7 @@
   }
 })();
 
-/* ---------- Firebase config ---------- */
+/* ---------- Firebase config and initialization ---------- */
 const firebaseConfig = {
   apiKey: "AIzaSyCIjAeYqS2Bbw60qU6ZUn2q04TlMFD5fdg",
   authDomain: "website-create-shimizunomori.firebaseapp.com",
@@ -255,14 +253,14 @@ const RES_COLLECTION = "shimizu_cafe_reservations";
 
 /* ---------- App state ---------- */
 let closedDatesSet = new Set();
-// indicates closed_dates loaded
+// NEW: flag to indicate closed dates have been loaded from Firestore
 let closedDatesLoaded = false;
 
 let allowDinnerOnSelectedDate = false;
 let selectedTime = "";
 let unsubscribe = null;
 
-/* ---------- Date helpers ---------- */
+/* ---------- Robust date utilities ---------- */
 function normalizeDateInputValue(inputEl) {
   if (!inputEl) return '';
   if (inputEl.value && inputEl.value.trim() !== '') return inputEl.value.trim();
@@ -299,7 +297,7 @@ function isDefaultClosed(dateObj) {
   if (!dateObj || !(dateObj instanceof Date)) return false;
   const day = dateObj.getDay();
   if (day === 0) return true; // Sunday
-  if (day === 1) { // Monday -> 2nd or 4th
+  if (day === 1) {
     const year = dateObj.getFullYear();
     const month = dateObj.getMonth();
     let mondayCount = 0;
@@ -378,7 +376,8 @@ firebase.auth().onAuthStateChanged(user => {
     initExtrasHandlers();
     initQtyButtonHandlers();
     initDrinkButtons();
-    // do not auto-restore session date here; initial state should be blank
+    // NOTE: Do not automatically restore session date here to keep initial state blank on load.
+    // loadSelectedDateFromSession(); // intentionally not called on startup
   } else {
     window.location.href = 'login.html';
   }
@@ -398,11 +397,12 @@ function loadClosedDates() {
     if (window.__dbg && typeof window.__dbg.dbg === 'function') window.__dbg.dbg('closedDates loaded: ' + closedDatesSet.size);
   }, err => {
     console.error('loadClosedDates failed', err);
+    // In case of error, set flag true to avoid blocking UX forever; submit still checks final state.
     closedDatesLoaded = true;
   });
 }
 
-/* ---------- UI helpers, extras, etc. ---------- */
+/* ---------- UI helpers, extras, etc. (preserved) ---------- */
 function populateDinnerTimeOptions(selectId = 'dinnerTime', selectedVal = '') {
   const sel = document.getElementById(selectId);
   if (!sel) return;
@@ -584,6 +584,57 @@ function initDrinkButtons() {
   newMinus.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); const v = parseInt(display.textContent || '0',10)||0; if (v>0) display.textContent = String(v-1); });
 }
 
+/* ---------- Date change handler (uses normalize) ---------- */
+const dateEl = document.getElementById('date');
+function onDateChanged(e) {
+  const normalized = normalizeDateInputValue(dateEl);
+  if (window.__dbg && typeof window.__dbg.dbg === 'function') window.__dbg.dbg('normalized date -> "' + normalized + '"');
+
+  if (!normalized) {
+    selectedDateVal = "";
+    allowDinnerOnSelectedDate = false;
+    renderTimeChoices(allowDinnerOnSelectedDate);
+    renderList('');
+    saveSelectedDateToSession('');
+    return;
+  }
+
+  // ONLY show alert if closedDates have been loaded AND this was user-initiated
+  if (isDateClosed(normalized)) {
+    if (closedDatesLoaded && e && e.isTrusted) {
+      alert("選択した日は休業日のため予約できません。");
+    } else {
+      if (window.__dbg && typeof window.__dbg.dbg === 'function') window.__dbg.dbg('date ' + normalized + ' is closed but closedDatesLoaded=' + closedDatesLoaded + ', userEvent=' + (!!(e && e.isTrusted)));
+    }
+    try { dateEl.value = ''; } catch (ex) {}
+    selectedDateVal = "";
+    allowDinnerOnSelectedDate = false;
+    renderTimeChoices(allowDinnerOnSelectedDate);
+    renderList('');
+    saveSelectedDateToSession('');
+    return;
+  }
+
+  allowDinnerOnSelectedDate = isFriOrSat(normalized);
+
+  if (!allowDinnerOnSelectedDate && selectedTime === 'dinner') {
+    selectedTime = "";
+    const hidden = document.getElementById("time");
+    if (hidden) hidden.value = "";
+  }
+
+  renderTimeChoices(allowDinnerOnSelectedDate);
+  selectedDateVal = normalized;
+  saveSelectedDateToSession(selectedDateVal);
+  renderList(selectedDateVal);
+}
+if (dateEl) {
+  dateEl.removeEventListener('change', onDateChanged); // safe no-op if not attached
+  dateEl.addEventListener('change', onDateChanged);
+  dateEl.removeEventListener('input', onDateChanged);
+  dateEl.addEventListener('input', onDateChanged);
+}
+
 /* ---------- Form submit ---------- */
 document.getElementById("resForm").onsubmit = async function(e) {
   e.preventDefault();
@@ -609,6 +660,7 @@ document.getElementById("resForm").onsubmit = async function(e) {
   if (tables.length === 0) { alert("テーブル番号を選択してください"); return; }
   if (time === 'dinner' && !dinnerTime) { alert('ディナーの時刻を選択してください。'); return; }
 
+  // final check on closed date at submit time (always enforced)
   if (isDateClosed(date)) { alert("選択した日は休業日のため予約できません。"); return; }
   if (time === 'dinner' && !allowDinnerOnSelectedDate) { alert("選択された日付ではディナーは受け付けていません。"); return; }
 
@@ -1159,7 +1211,8 @@ if (document.readyState === 'loading') {
     initExtrasHandlers();
     initQtyButtonHandlers();
     initDrinkButtons();
-    // initial state blank: do not call loadSelectedDateFromSession();
+    // Do not auto-restore session date here to keep initial page blank on load.
+    // loadSelectedDateFromSession();
   });
 } else {
   populateDinnerTimeOptions();
