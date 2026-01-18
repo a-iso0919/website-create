@@ -227,29 +227,61 @@
     return false;
   }
 
-  // isDateClosed(YYYY-MM-DD) -> boolean
+  function parseYMD(ymd) {
+  // ymd は 'YYYY-MM-DD' を想定
+  if (!ymd || typeof ymd !== 'string') return null;
+  const m = ymd.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) return null;
+  const year = parseInt(m[1], 10);
+  const month = parseInt(m[2], 10) - 1; // JS monthIndex
+  const day = parseInt(m[3], 10);
+  return new Date(year, month, day); // ローカルタイムでの 00:00:00 を生成
+}
+
+// isDefaultClosed: 日曜日 / 第2・第4月曜日 を判定（Date オブジェクト入力）
+// （既存の実装をそのまま使えます）
+function isDefaultClosed(dateObj) {
+  if (!dateObj || !(dateObj instanceof Date)) return false;
+  const day = dateObj.getDay(); // 0=Sun,1=Mon...
+  if (day === 0) return true; // every Sunday closed
+
+  if (day === 1) { // Monday -> check 2nd or 4th occurrence in month
+    const year = dateObj.getFullYear();
+    const month = dateObj.getMonth();
+    let mondayCount = 0;
+    for (let d = 1; d <= dateObj.getDate(); d++) {
+      const dt = new Date(year, month, d);
+      if (dt.getDay() === 1) mondayCount++;
+    }
+    if (mondayCount === 2 || mondayCount === 4) return true;
+  }
+  return false;
+}
+
+  // --- 更新: isDateClosed では parseYMD を使う ---
   function isDateClosed(ymd) {
     if (!ymd) return false;
-    const dateObj = new Date(ymd + 'T00:00:00');
+    const dateObj = parseYMD(ymd);
+    if (!dateObj) return false;
     if (isDefaultClosed(dateObj)) return true;
     if (closedDatesSet.has(ymd)) return true;
     return false;
   }
-
-  // helper: check if date (YYYY-MM-DD) is Friday or Saturday
+  
+  // --- 更新: isFriOrSat でも parseYMD を使う ---
   function isFriOrSat(ymd) {
     if (!ymd) return false;
-    const d = new Date(ymd + 'T00:00:00');
-    if (isNaN(d)) return false;
+    const d = parseYMD(ymd);
+    if (!d) return false;
     const day = d.getDay(); // 5 = Fri, 6 = Sat
     return (day === 5 || day === 6);
   }
-
-  // compute expireAt Timestamp from dateStr 'YYYY-MM-DD' and days offset (default 7 days)
+  
+  // --- 更新: computeExpireAtFromDate も parseYMD を使い確実にローカル日付で加算 ---
   function computeExpireAtFromDate(dateStr, days = 7) {
     if (!dateStr) return null;
-    const base = new Date(dateStr + 'T00:00:00');
-    if (isNaN(base)) return null;
+    const base = parseYMD(dateStr);
+    if (!base || isNaN(base)) return null;
     const expireDate = new Date(base.getTime() + days * 24 * 60 * 60 * 1000);
     return firebase.firestore.Timestamp.fromDate(expireDate);
   }
