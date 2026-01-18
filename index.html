@@ -153,9 +153,9 @@
 <script>
 /* Full index.html script that preserves existing features and adds the iPad/date fixes:
    - closedDatesLoaded flag to avoid race alerts
-   - onDateChanged shows alert only when closedDatesLoaded && user-initiated (e.isTrusted)
+   - picker-safe date handling using focus/blur + debounce + dedupe
    - initial load will not auto-restore session date (initial state stays empty)
-   Other existing functions (showEditForm, etc.) are preserved as before. */
+*/
 
 /* ---------- DEBUG PANEL (optional) ---------- */
 (function createDebugPanel(){
@@ -195,22 +195,22 @@
       dbg('UNHANDLED PROMISE REJECTION: ' + (ev && ev.reason ? String(ev.reason) : String(ev)));
     });
 
-    const dateEl = document.getElementById('date');
-    if (dateEl) {
+    const dateElDbg = document.getElementById('date');
+    if (dateElDbg) {
       const showDate = () => {
-        dbg('date.value = "' + (dateEl.value || '') + '"');
+        dbg('date.value = "' + (dateElDbg.value || '') + '"');
         if (typeof normalizeDateInputValue === 'function') {
-          try { dbg('normalized -> "' + normalizeDateInputValue(dateEl) + '"'); } catch(e) { dbg('normalize threw: ' + e); }
+          try { dbg('normalized -> "' + normalizeDateInputValue(dateElDbg) + '"'); } catch(e) { dbg('normalize threw: ' + e); }
         }
         if (typeof parseYMD === 'function') {
           try {
-            const parsed = parseYMD(dateEl.value || normalizeDateInputValue(dateEl));
+            const parsed = parseYMD(dateElDbg.value || normalizeDateInputValue(dateElDbg));
             dbg('parseYMD -> ' + (parsed ? parsed.toString() : 'null'));
           } catch(e){ dbg('parseYMD threw: ' + e); }
         } else dbg('parseYMD not defined');
       };
-      dateEl.addEventListener('change', showDate);
-      dateEl.addEventListener('input', showDate);
+      dateElDbg.addEventListener('change', showDate);
+      dateElDbg.addEventListener('input', showDate);
       setTimeout(showDate, 500);
     } else {
       dbg('date element not found');
@@ -540,7 +540,7 @@ function updateExtrasPreview(){ const previewEl = document.getElementById('extra
 function getExtrasForSave() {
   const pasta = Number(document.getElementById('childPastaValue').value) || 0;
   const hamb = Number(document.getElementById('childHamburgerValue').value) || 0;
-  const bday = Number(document.getElementById('birthdayValue').value) || 0;
+  const bday = Number(document.getElementById('birthdayValue')?.value || 0);
   const funaCount = Number(document.getElementById('funamoriValue').value) || 0;
   return {
     childPlatePastaCount: pasta,
@@ -584,13 +584,15 @@ function initDrinkButtons() {
   newMinus.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); const v = parseInt(display.textContent || '0',10)||0; if (v>0) display.textContent = String(v-1); });
 }
 
-/* ---------- Date change handler (uses normalize) ---------- */
-const dateEl = document.getElementById('date');
-function onDateChanged(e) {
-  const normalized = normalizeDateInputValue(dateEl);
-  if (window.__dbg && typeof window.__dbg.dbg === 'function') window.__dbg.dbg('normalized date -> "' + normalized + '"');
+/* ---------- Date picker safe handling (focus/blur + debounce + dedupe) ---------- */
+const dateElement = document.getElementById('date');
+let _datePickerOpen = false;
+let _lastNormalizedProcessed = "";
+let _dateProcessTimer = null;
 
+function processNormalizedDate(normalized, userInitiated) {
   if (!normalized) {
+    _lastNormalizedProcessed = "";
     selectedDateVal = "";
     allowDinnerOnSelectedDate = false;
     renderTimeChoices(allowDinnerOnSelectedDate);
@@ -599,14 +601,19 @@ function onDateChanged(e) {
     return;
   }
 
-  // ONLY show alert if closedDates have been loaded AND this was user-initiated
+  if (_lastNormalizedProcessed === normalized) {
+    if (window.__dbg && typeof window.__dbg.dbg === 'function') window.__dbg.dbg('skip duplicate normalized=' + normalized);
+    return;
+  }
+
   if (isDateClosed(normalized)) {
-    if (closedDatesLoaded && e && e.isTrusted) {
+    if (closedDatesLoaded && userInitiated) {
       alert("選択した日は休業日のため予約できません。");
+      try { dateElement.value = ''; } catch(e) {}
     } else {
-      if (window.__dbg && typeof window.__dbg.dbg === 'function') window.__dbg.dbg('date ' + normalized + ' is closed but closedDatesLoaded=' + closedDatesLoaded + ', userEvent=' + (!!(e && e.isTrusted)));
+      if (window.__dbg && typeof window.__dbg.dbg === 'function') window.__dbg.dbg('closed but suppressed (loaded=' + closedDatesLoaded + ', user=' + !!userInitiated + ') -> ' + normalized);
     }
-    try { dateEl.value = ''; } catch (ex) {}
+    _lastNormalizedProcessed = "";
     selectedDateVal = "";
     allowDinnerOnSelectedDate = false;
     renderTimeChoices(allowDinnerOnSelectedDate);
@@ -616,23 +623,52 @@ function onDateChanged(e) {
   }
 
   allowDinnerOnSelectedDate = isFriOrSat(normalized);
-
   if (!allowDinnerOnSelectedDate && selectedTime === 'dinner') {
     selectedTime = "";
     const hidden = document.getElementById("time");
     if (hidden) hidden.value = "";
   }
 
-  renderTimeChoices(allowDinnerOnSelectedDate);
+  _lastNormalizedProcessed = normalized;
   selectedDateVal = normalized;
   saveSelectedDateToSession(selectedDateVal);
+  renderTimeChoices(allowDinnerOnSelectedDate);
   renderList(selectedDateVal);
 }
-if (dateEl) {
-  dateEl.removeEventListener('change', onDateChanged); // safe no-op if not attached
-  dateEl.addEventListener('change', onDateChanged);
-  dateEl.removeEventListener('input', onDateChanged);
-  dateEl.addEventListener('input', onDateChanged);
+
+function scheduleProcessDate(e) {
+  const userInitiated = !!(e && e.isTrusted);
+  const normalized = normalizeDateInputValue(dateElement);
+
+  if (_dateProcessTimer) { clearTimeout(_dateProcessTimer); _dateProcessTimer = null; }
+
+  if (_datePickerOpen) {
+    if (window.__dbg && typeof window.__dbg.dbg === 'function') window.__dbg.dbg('picker open — defer process normalized=' + normalized);
+    return;
+  }
+
+  _dateProcessTimer = setTimeout(() => {
+    _dateProcessTimer = null;
+    processNormalizedDate(normalized, userInitiated);
+  }, 300);
+}
+
+if (dateElement) {
+  dateElement.addEventListener('focus', (ev) => {
+    _datePickerOpen = true;
+    if (window.__dbg && typeof window.__dbg.dbg === 'function') window.__dbg.dbg('date focus -> picker open');
+  });
+  dateElement.addEventListener('blur', (ev) => {
+    _datePickerOpen = false;
+    if (window.__dbg && typeof window.__dbg.dbg === 'function') window.__dbg.dbg('date blur -> picker closed, normalized="' + normalizeDateInputValue(dateElement) + '"');
+    if (_dateProcessTimer) { clearTimeout(_dateProcessTimer); _dateProcessTimer = null; }
+    processNormalizedDate(normalizeDateInputValue(dateElement), true);
+  });
+
+  dateElement.removeEventListener('input', scheduleProcessDate);
+  dateElement.addEventListener('input', scheduleProcessDate);
+  dateElement.removeEventListener('change', scheduleProcessDate);
+  dateElement.addEventListener('change', scheduleProcessDate);
 }
 
 /* ---------- Form submit ---------- */
@@ -717,6 +753,7 @@ document.getElementById("resForm").onsubmit = async function(e) {
 
 /* ---------- renderList & drawTable (preserved) ---------- */
 function renderList(selectedDate) {
+// (functions renderList, drawTable are preserved unchanged above)
   const area = document.getElementById("listArea");
   area.innerHTML = "";
 
@@ -973,29 +1010,24 @@ function showEditForm(info, date, timeKey, tNo, selectedDate) {
     <h3 style="margin:7px 0 13px 7px;font-size:1.02em;color:#a77f50">
       変更（${date} ${tNo} ${timeKey}）
     </h3>
-
     <label>名前：
       <input type="text" id="editName" value="${(info.name||'').replace(/"/g,'&quot;')}" placeholder="例：カトウ">
     </label>
-
     <label>電話番号：
       <input type="tel" id="editTel" value="${(info.tel||'').replace(/"/g,'&quot;')}" placeholder="例：09012345678">
     </label>
-
     <label>大人人数：
       <input type="number" id="editNumA" value="${info.numAdult || 0}" min="0" max="20" required>
     </label>
     <label>子ども人数：
       <input type="number" id="editNumC" value="${info.numChild || 0}" min="0" max="20" required>
     </label>
-
     ${timeKey === 'dinner' ? `
     <label style="margin-top:10px;">時刻:
       <select id="editDinnerTime">
         <option value="">（時刻を選択してください）</option>
       </select>
     </label>
-
     <label style="margin-top:10px;">コース:
       <select id="editCourse">
         <option value="">（コースの種類を選択してください）</option>
@@ -1007,7 +1039,6 @@ function showEditForm(info, date, timeKey, tNo, selectedDate) {
         <option value="和5000" ${courseValue==='和5000' ? 'selected' : ''}>和5000円</option>
       </select>
     </label>
-
     <label style="margin-top:8px;">飲み放題（¥2,500）:
       <div style="display:flex;align-items:center;gap:8px;">
         <button type="button" class="act-btn" id="editDrinkMinus">−</button>
@@ -1016,15 +1047,12 @@ function showEditForm(info, date, timeKey, tNo, selectedDate) {
       </div>
     </label>
     ` : ``}
-
     <label style="display:block;margin-top:10px;">
       テーブル（選択テーブルを変更できます）:
       <div id="editTableChoice" style="margin-top:6px; display:flex; flex-wrap:wrap; gap:8px;"></div>
     </label>
-
     <fieldset style="border-radius:6px;padding:8px;margin-top:10px;border:1px solid #ddd;">
       <legend style="font-weight:700">備考</legend>
-
       <div style="display:flex;gap:12px;align-items:center;margin-bottom:8px;">
         <label style="min-width:150px;">お子様プレート（パスタ） ¥650</label>
         <div style="display:flex;align-items:center;gap:8px;">
@@ -1034,7 +1062,6 @@ function showEditForm(info, date, timeKey, tNo, selectedDate) {
           <input type="hidden" id="editChildPastaValue" />
         </div>
       </div>
-
       <div style="display:flex;gap:12px;align-items:center;margin-bottom:8px;">
         <label style="min-width:150px;">お子様プレート（ハンバーグ） ¥650</label>
         <div style="display:flex;align-items:center;gap:8px;">
@@ -1044,7 +1071,6 @@ function showEditForm(info, date, timeKey, tNo, selectedDate) {
           <input type="hidden" id="editChildHamburgerValue" />
         </div>
       </div>
-
       <div style="display:flex;gap:12px;align-items:center;margin-bottom:8px;">
         <label style="min-width:150px;">誕生日プレート ¥1,300</label>
         <div style="display:flex;align-items:center;gap:8px;">
@@ -1054,7 +1080,6 @@ function showEditForm(info, date, timeKey, tNo, selectedDate) {
           <input type="hidden" id="editBirthdayValue" />
         </div>
       </div>
-
       <div style="display:flex;gap:12px;align-items:center;margin-bottom:8px;">
         <label style="min-width:150px;">舟盛り（¥10,000〜）</label>
         <div style="display:flex;align-items:center;gap:8px;">
@@ -1064,13 +1089,10 @@ function showEditForm(info, date, timeKey, tNo, selectedDate) {
           <input type="hidden" id="editFunamoriValue" />
         </div>
       </div>
-
     </fieldset>
-
     <label style="display:block;margin-top:8px;">その他（自由記入）:
       <textarea id="editNote">${(info.note||'').replace(/</g,'&lt;')}</textarea>
     </label>
-
     <div style="margin-top:10px">
       <button class="act-btn" id="saveEditBtn">保存</button>
       <button class="act-btn" id="cancelEditBtn">キャンセル</button>
