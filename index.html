@@ -151,14 +151,12 @@
   </div>
 
 <script>
-/*
-  Debug panel + full working script (stable parseYMD, dinner time dropdown,
-  drink count, session-preserved selected date, validation ensuring not both adults/children zero,
-  drawing reservation list including dinner time column).
-  This file is a complete replacement — paste as-is to index.html and save.
-*/
+/* Full index.html script.
+   This file preserves existing features (showEditForm and all helpers) and only
+   adds robust date normalization for iOS Safari (normalizeDateInputValue + updated handlers).
+   Make sure to clear browser cache on devices after replacing. */
 
-/* ---------- DEBUG PANEL (non-blocking) ---------- */
+/* ---------- DEBUG PANEL (optional) ---------- */
 (function createDebugPanel(){
   try {
     const panel = document.createElement('div');
@@ -195,22 +193,22 @@
       dbg('UNHANDLED PROMISE REJECTION: ' + (ev && ev.reason ? String(ev.reason) : String(ev)));
     });
 
-    // show date.value on change (will show even on iPad)
     const dateEl = document.getElementById('date');
     if (dateEl) {
       const showDate = () => {
         dbg('date.value = "' + (dateEl.value || '') + '"');
+        if (typeof normalizeDateInputValue === 'function') {
+          try { dbg('normalized -> "' + normalizeDateInputValue(dateEl) + '"'); } catch(e) { dbg('normalize threw: ' + e); }
+        }
         if (typeof parseYMD === 'function') {
           try {
-            const parsed = parseYMD(dateEl.value);
+            const parsed = parseYMD(dateEl.value || normalizeDateInputValue(dateEl));
             dbg('parseYMD -> ' + (parsed ? parsed.toString() : 'null'));
           } catch(e){ dbg('parseYMD threw: ' + e); }
         } else dbg('parseYMD not defined');
-        if (typeof isDateClosed === 'function') {
-          try { dbg('isDateClosed -> ' + (isDateClosed(dateEl.value) ? 'true' : 'false')); } catch(e){ dbg('isDateClosed threw: ' + e); }
-        } else dbg('isDateClosed not defined');
       };
       dateEl.addEventListener('change', showDate);
+      dateEl.addEventListener('input', showDate);
       setTimeout(showDate, 500);
     } else {
       dbg('date element not found');
@@ -224,7 +222,6 @@
       dbg('Self-fetch failed: ' + err);
     });
 
-    // helper to print closedDatesSet later
     window.__dbg_printClosedDates = function(){
       try {
         if (typeof closedDatesSet !== 'undefined') {
@@ -234,7 +231,7 @@
       } catch(e){ dbg('printClosedDates error: ' + e); }
     };
   } catch (e) {
-    /* silent */
+    /* ignore */
   }
 })();
 
@@ -258,21 +255,50 @@ let allowDinnerOnSelectedDate = false;
 let selectedTime = "";
 let unsubscribe = null;
 
-/* ---------- Date helpers (robust) ---------- */
+/* ---------- Robust date utilities ---------- */
+// Normalize date input element to YYYY-MM-DD string reliably (handles iOS valueAsDate)
+function normalizeDateInputValue(inputEl) {
+  if (!inputEl) return '';
+  // Prefer explicit value if present
+  if (inputEl.value && inputEl.value.trim() !== '') return inputEl.value.trim();
+  // Fallback to valueAsDate (works on Safari/iOS)
+  try {
+    const d = inputEl.valueAsDate;
+    if (d instanceof Date && !isNaN(d)) {
+      const yyyy = d.getFullYear();
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const dd = String(d.getDate()).padStart(2, '0');
+      return `${yyyy}-${mm}-${dd}`;
+    }
+  } catch (e) {
+    // ignore
+  }
+  // Last resort: attempt to parse attributes
+  const raw = (inputEl.getAttribute && (inputEl.getAttribute('value') || inputEl.getAttribute('data-value') || '')) || '';
+  const m = raw.match(/(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})/);
+  if (m) {
+    return `${m[1]}-${String(m[2]).padStart(2,'0')}-${String(m[3]).padStart(2,'0')}`;
+  }
+  return '';
+}
+
+// parseYMD accepts YYYY-MM-DD or YYYY/MM/DD or Date input
 function parseYMD(ymd) {
-  if (!ymd || typeof ymd !== 'string') return null;
-  const m = ymd.match(/^(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})$/);
+  if (!ymd) return null;
+  if (ymd instanceof Date) return new Date(ymd.getFullYear(), ymd.getMonth(), ymd.getDate());
+  const s = String(ymd).trim();
+  const m = s.match(/^(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})$/);
   if (!m) return null;
-  const year = parseInt(m[1], 10);
-  const month = parseInt(m[2], 10) - 1;
-  const day = parseInt(m[3], 10);
+  const year = Number(m[1]);
+  const month = Number(m[2]) - 1;
+  const day = Number(m[3]);
   return new Date(year, month, day);
 }
 
 function isDefaultClosed(dateObj) {
   if (!dateObj || !(dateObj instanceof Date)) return false;
   const day = dateObj.getDay();
-  if (day === 0) return true; // Sunday closed
+  if (day === 0) return true; // Sunday
   if (day === 1) { // Monday -> 2nd or 4th
     const year = dateObj.getFullYear();
     const month = dateObj.getMonth();
@@ -286,13 +312,16 @@ function isDefaultClosed(dateObj) {
   return false;
 }
 
-function isDateClosed(ymd) {
-  if (!ymd) return false;
-  const dateObj = parseYMD(ymd);
+// Accepts string (YYYY-MM-DD) or Date object
+function isDateClosed(input) {
+  if (!input) return false;
+  let dateObj = null;
+  if (input instanceof Date) dateObj = new Date(input.getFullYear(), input.getMonth(), input.getDate());
+  else dateObj = parseYMD(input);
   if (!dateObj) return false;
   if (isDefaultClosed(dateObj)) return true;
+  const ymd = `${dateObj.getFullYear()}-${String(dateObj.getMonth()+1).padStart(2,'0')}-${String(dateObj.getDate()).padStart(2,'0')}`;
   if (closedDatesSet.has(ymd)) return true;
-  // accept stored values that include time portion (prefix match)
   for (const cd of closedDatesSet) {
     if (typeof cd === 'string' && cd.indexOf(ymd) === 0) return true;
   }
@@ -516,7 +545,7 @@ function getExtrasForSave() {
   };
 }
 
-/* ---------- Qty button defensive init ---------- */
+/* ---------- Defensive qty init ---------- */
 function initQtyButtonHandlers() {
   document.querySelectorAll('.qty-btn').forEach(btn => {
     const clone = btn.cloneNode(true);
@@ -549,10 +578,12 @@ function initDrinkButtons() {
   newMinus.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); const v = parseInt(display.textContent || '0',10)||0; if (v>0) display.textContent = String(v-1); });
 }
 
-/* ---------- Date change handling ---------- */
-document.getElementById("date").addEventListener("change", function(e){
-  const chosen = e.target.value;
-  if (!chosen) {
+/* ---------- Date change handler (uses normalize) ---------- */
+const dateEl = document.getElementById('date');
+function onDateChanged(e) {
+  const normalized = normalizeDateInputValue(dateEl);
+  if (window.__dbg && typeof window.__dbg.dbg === 'function') window.__dbg.dbg('normalized date -> "' + normalized + '"');
+  if (!normalized) {
     selectedDateVal = "";
     allowDinnerOnSelectedDate = false;
     renderTimeChoices(allowDinnerOnSelectedDate);
@@ -560,9 +591,9 @@ document.getElementById("date").addEventListener("change", function(e){
     saveSelectedDateToSession('');
     return;
   }
-  if (isDateClosed(chosen)) {
+  if (isDateClosed(normalized)) {
     alert("選択した日は休業日のため予約できません。");
-    e.target.value = "";
+    try { dateEl.value = ''; } catch (e) {}
     selectedDateVal = "";
     allowDinnerOnSelectedDate = false;
     renderTimeChoices(allowDinnerOnSelectedDate);
@@ -570,22 +601,26 @@ document.getElementById("date").addEventListener("change", function(e){
     saveSelectedDateToSession('');
     return;
   }
-  allowDinnerOnSelectedDate = isFriOrSat(chosen);
+  allowDinnerOnSelectedDate = isFriOrSat(normalized);
   if (!allowDinnerOnSelectedDate && selectedTime === 'dinner') {
     selectedTime = "";
     const hidden = document.getElementById("time");
     if (hidden) hidden.value = "";
   }
   renderTimeChoices(allowDinnerOnSelectedDate);
-  selectedDateVal = chosen;
+  selectedDateVal = normalized;
   saveSelectedDateToSession(selectedDateVal);
   renderList(selectedDateVal);
-});
+}
+if (dateEl) {
+  dateEl.addEventListener('change', onDateChanged);
+  dateEl.addEventListener('input', onDateChanged);
+}
 
-/* ---------- Form submit (validation + save) ---------- */
+/* ---------- Form submit ---------- */
 document.getElementById("resForm").onsubmit = async function(e) {
   e.preventDefault();
-  const date = document.getElementById("date")?.value || "";
+  const date = normalizeDateInputValue(document.getElementById("date"));
   const time = document.getElementById("time")?.value || "";
   const numAdult = Number(document.getElementById("numAdult")?.value || 0);
   const numChild = Number(document.getElementById("numChild")?.value || 0);
@@ -600,7 +635,7 @@ document.getElementById("resForm").onsubmit = async function(e) {
   const dinnerTime = document.getElementById("dinnerTime") ? document.getElementById("dinnerTime").value || null : null;
   const drinkCount = document.getElementById("drinkCount") ? parseInt(document.getElementById("drinkCount").textContent||'0',10) : 0;
 
-  if (!date || !time || isNaN(numAdult) || isNaN(numChild)) { alert("日付・時間・人数は必須です"); return; }
+  if (!date || !time || isNaN(numAdult) || isNaN(numChild)) { alert("日付・時��・人数は必須です"); return; }
   if (numAdult === 0 && numChild === 0) { alert("大人または子どもどちらか1名以上を指定してください。"); return; }
   if (name && !(/^[ァ-ヴー]+$/.test(name))) { alert("名前はカタカナのみで入力してください"); return; }
   if (tel && !(/^[0-9]+$/.test(tel))) { alert("電話番号は数字のみで入力してください"); return; }
@@ -621,7 +656,10 @@ document.getElementById("resForm").onsubmit = async function(e) {
       const r = doc.data();
       return (r.tables||[]).some(t => tables.includes(t));
     });
-    if (overlap) { alert("選択したテーブルで既に予約があります"); return; }
+    if (overlap) {
+      alert("選択したテーブルで既に予約があります");
+      return;
+    }
   } catch (err) {
     console.error('Overlap check failed', err);
     alert('予約の重複チェックに失敗しました: ' + (err.message || err));
@@ -645,7 +683,6 @@ document.getElementById("resForm").onsubmit = async function(e) {
     return;
   }
 
-  // keep date in session, clear other fields but restore date
   saveSelectedDateToSession(date);
   document.getElementById("resForm").reset();
   document.getElementById("time").value = "";
@@ -665,6 +702,7 @@ document.getElementById("resForm").onsubmit = async function(e) {
 function renderList(selectedDate) {
   const area = document.getElementById("listArea");
   area.innerHTML = "";
+
   if (!selectedDate) {
     if (typeof unsubscribe === 'function') {
       try { unsubscribe(); } catch(e){ /* ignore */ }
@@ -751,12 +789,16 @@ function drawTable(res, selectedDate) {
 
       TABLES.forEach((tNo, tIndex) => {
         const tr = document.createElement("tr");
-        const tdNo = document.createElement("td"); tdNo.className = "table-no"; tdNo.textContent = tNo;
+        const tdNo = document.createElement("td");
+        tdNo.className = "table-no";
+        tdNo.textContent = tNo;
         const hasRes = grouped[date] && grouped[date][timeKey] && grouped[date][timeKey][tNo];
         if (!hasRes) tdNo.classList.add('available');
         tr.appendChild(tdNo);
 
-        const tdCap = document.createElement("td"); tdCap.className = "cap-cell"; tdCap.textContent = TABLE_CAPACITY[tNo] + "人";
+        const tdCap = document.createElement("td");
+        tdCap.className = "cap-cell";
+        tdCap.textContent = TABLE_CAPACITY[tNo] + "人";
         tr.appendChild(tdCap);
 
         if (hasRes) {
@@ -767,20 +809,68 @@ function drawTable(res, selectedDate) {
           if (isFirst) {
             const rowspan = Math.max(1, orderedResTables.length);
 
-            const tdNumA = document.createElement("td"); tdNumA.className = "num merged-cell"; tdNumA.textContent = info.numAdult; tdNumA.rowSpan = rowspan; tdNumA.style.verticalAlign = "middle"; tr.appendChild(tdNumA);
-            const tdNumC = document.createElement("td"); tdNumC.className = "childnum merged-cell"; tdNumC.textContent = info.numChild; tdNumC.rowSpan = rowspan; tdNumC.style.verticalAlign = "middle"; tr.appendChild(tdNumC);
+            const tdNumA = document.createElement("td");
+            tdNumA.className = "num merged-cell";
+            tdNumA.textContent = info.numAdult;
+            tdNumA.rowSpan = rowspan;
+            tdNumA.style.verticalAlign = "middle";
+            tr.appendChild(tdNumA);
+
+            const tdNumC = document.createElement("td");
+            tdNumC.className = "childnum merged-cell";
+            tdNumC.textContent = info.numChild;
+            tdNumC.rowSpan = rowspan;
+            tdNumC.style.verticalAlign = "middle";
+            tr.appendChild(tdNumC);
 
             if (timeKey === 'dinner') {
-              const tdTime = document.createElement("td"); tdTime.className = "time-cell merged-cell"; tdTime.textContent = info.dinnerTime || ""; tdTime.rowSpan = rowspan; tdTime.style.verticalAlign = "middle"; tdTime.style.textAlign = "center"; tr.appendChild(tdTime);
-              const tdCourse = document.createElement("td"); tdCourse.className = "course-cell merged-cell"; tdCourse.textContent = info.course || ""; tdCourse.rowSpan = rowspan; tdCourse.style.verticalAlign = "middle"; tdCourse.style.textAlign = "center"; tr.appendChild(tdCourse);
-              const tdName = document.createElement("td"); tdName.className = "reserved merged-cell"; tdName.textContent = info.name || ""; tdName.rowSpan = rowspan; tdName.style.verticalAlign = "middle"; tr.appendChild(tdName);
-              const tdTel = document.createElement("td"); tdTel.className = "phone merged-cell"; tdTel.textContent = info.tel || ""; tdTel.rowSpan = rowspan; tdTel.style.verticalAlign = "middle"; tr.appendChild(tdTel);
+              const tdTime = document.createElement("td");
+              tdTime.className = "time-cell merged-cell";
+              tdTime.textContent = info.dinnerTime || "";
+              tdTime.rowSpan = rowspan;
+              tdTime.style.verticalAlign = "middle";
+              tdTime.style.textAlign = "center";
+              tr.appendChild(tdTime);
+
+              const tdCourse = document.createElement("td");
+              tdCourse.className = "course-cell merged-cell";
+              tdCourse.textContent = info.course || "";
+              tdCourse.rowSpan = rowspan;
+              tdCourse.style.verticalAlign = "middle";
+              tdCourse.style.textAlign = "center";
+              tr.appendChild(tdCourse);
+
+              const tdName = document.createElement("td");
+              tdName.className = "reserved merged-cell";
+              tdName.textContent = info.name || "";
+              tdName.rowSpan = rowspan;
+              tdName.style.verticalAlign = "middle";
+              tr.appendChild(tdName);
+
+              const tdTel = document.createElement("td");
+              tdTel.className = "phone merged-cell";
+              tdTel.textContent = info.tel || "";
+              tdTel.rowSpan = rowspan;
+              tdTel.style.verticalAlign = "middle";
+              tr.appendChild(tdTel);
             } else {
-              const tdName = document.createElement("td"); tdName.className = "reserved merged-cell"; tdName.textContent = info.name || ""; tdName.rowSpan = rowspan; tdName.style.verticalAlign = "middle"; tr.appendChild(tdName);
-              const tdTel = document.createElement("td"); tdTel.className = "phone merged-cell"; tdTel.textContent = info.tel || ""; tdTel.rowSpan = rowspan; tdTel.style.verticalAlign = "middle"; tr.appendChild(tdTel);
+              const tdName = document.createElement("td");
+              tdName.className = "reserved merged-cell";
+              tdName.textContent = info.name || "";
+              tdName.rowSpan = rowspan;
+              tdName.style.verticalAlign = "middle";
+              tr.appendChild(tdName);
+
+              const tdTel = document.createElement("td");
+              tdTel.className = "phone merged-cell";
+              tdTel.textContent = info.tel || "";
+              tdTel.rowSpan = rowspan;
+              tdTel.style.verticalAlign = "middle";
+              tr.appendChild(tdTel);
             }
 
-            const tdNote = document.createElement("td"); tdNote.className = "note-cell merged-cell";
+            const tdNote = document.createElement("td");
+            tdNote.className = "note-cell merged-cell";
             let noteStr = [];
             if (info.drinkCount && info.drinkCount > 0) noteStr.push(`飲み放題×${info.drinkCount}`);
             if (info.childPlatePastaCount && info.childPlatePastaCount > 0) noteStr.push(`パスタ x${info.childPlatePastaCount}`);
@@ -789,29 +879,56 @@ function drawTable(res, selectedDate) {
             if ((info.funamoriCount || 0) > 0) noteStr.push(`舟盛り x${info.funamoriCount}`);
             if (info.note && info.note.trim() !== "") noteStr.push(info.note);
             tdNote.textContent = noteStr.join("／");
-            tdNote.rowSpan = rowspan; tdNote.style.verticalAlign = "middle"; tdNote.style.textAlign = "center"; tr.appendChild(tdNote);
+            tdNote.rowSpan = rowspan;
+            tdNote.style.verticalAlign = "middle";
+            tdNote.style.textAlign = "center";
+            tr.appendChild(tdNote);
 
-            const tdAct = document.createElement("td"); tdAct.className = "action-cell merged-cell"; tdAct.rowSpan = rowspan; tdAct.style.verticalAlign = "middle"; tdAct.style.textAlign = "center";
-            const removeBtn = document.createElement("button"); removeBtn.className = "act-btn"; removeBtn.textContent = "削除";
+            const tdAct = document.createElement("td");
+            tdAct.className = "action-cell merged-cell";
+            tdAct.rowSpan = rowspan;
+            tdAct.style.verticalAlign = "middle";
+            tdAct.style.textAlign = "center";
+
+            const removeBtn = document.createElement("button");
+            removeBtn.className = "act-btn";
+            removeBtn.textContent = "削除";
             removeBtn.onclick = async () => {
               if (confirm("本当に削除してもよいですか？")) {
-                try { await db.collection(RES_COLLECTION).doc(info._id).delete(); } catch (err) { console.error('Delete failed', err); alert('削除に失敗しました: ' + (err.message || err)); }
+                try {
+                  await db.collection(RES_COLLECTION).doc(info._id).delete();
+                } catch (err) {
+                  console.error('Delete failed', err);
+                  alert('削除に失敗しました: ' + (err.message || err));
+                }
               }
             };
-            const editBtn = document.createElement("button"); editBtn.className = "act-btn"; editBtn.textContent = "変更"; editBtn.style.marginLeft = "8px";
+
+            const editBtn = document.createElement("button");
+            editBtn.className = "act-btn";
+            editBtn.textContent = "変更";
+            editBtn.style.marginLeft = "8px";
             editBtn.onclick = () => { showEditForm(info, date, timeKey, tNo, selectedDate); };
-            tdAct.appendChild(removeBtn); tdAct.appendChild(editBtn); tr.appendChild(tdAct);
+
+            tdAct.appendChild(removeBtn);
+            tdAct.appendChild(editBtn);
+            tr.appendChild(tdAct);
           }
         } else {
           Array(6 + (timeKey === 'dinner' ? 2 : 0)).fill(0).forEach(() => {
-            const td = document.createElement("td"); td.className = "empty"; td.textContent = ''; tr.appendChild(td);
+            const td = document.createElement("td");
+            td.className = "empty";
+            td.textContent = '';
+            tr.appendChild(td);
           });
         }
 
         const nextTable = TABLES[tIndex + 1];
         if (hasRes && nextTable) {
           const nextInfo = grouped[date] && grouped[date][timeKey] && grouped[date][timeKey][nextTable];
-          if (nextInfo && nextInfo._id === grouped[date][timeKey][tNo]._id) tr.classList.add('no-divider');
+          if (nextInfo && nextInfo._id === grouped[date][timeKey][tNo]._id) {
+            tr.classList.add('no-divider');
+          }
         }
 
         tbody.appendChild(tr);
@@ -824,7 +941,7 @@ function drawTable(res, selectedDate) {
   });
 }
 
-/* ---------- Edit form (complete) ---------- */
+/* ---------- showEditForm (full implementation) ---------- */
 function showEditForm(info, date, timeKey, tNo, selectedDate) {
   const area = document.getElementById("listArea");
   area.innerHTML = "";
@@ -836,23 +953,44 @@ function showEditForm(info, date, timeKey, tNo, selectedDate) {
   const editDrinkValue = info.drinkCount || 0;
 
   editDiv.innerHTML = `
-    <h3 style="margin:7px 0 13px 7px;font-size:1.02em;color:#a77f50">変更（${date} ${tNo} ${timeKey}）</h3>
+    <h3 style="margin:7px 0 13px 7px;font-size:1.02em;color:#a77f50">
+      変更（${date} ${tNo} ${timeKey}）
+    </h3>
 
-    <label>名前：<input type="text" id="editName" value="${(info.name||'').replace(/"/g,'&quot;')}" placeholder="例：カトウ"></label>
-    <label>電話番号：<input type="tel" id="editTel" value="${(info.tel||'').replace(/"/g,'&quot;')}" placeholder="例：09012345678"></label>
-    <label>大人人数：<input type="number" id="editNumA" value="${info.numAdult || 0}" min="0" max="20" required></label>
-    <label>子ども人数：<input type="number" id="editNumC" value="${info.numChild || 0}" min="0" max="20" required></label>
+    <label>名前：
+      <input type="text" id="editName" value="${(info.name||'').replace(/"/g,'&quot;')}" placeholder="例：カトウ">
+    </label>
+
+    <label>電話番号：
+      <input type="tel" id="editTel" value="${(info.tel||'').replace(/"/g,'&quot;')}" placeholder="例：09012345678">
+    </label>
+
+    <label>大人人数：
+      <input type="number" id="editNumA" value="${info.numAdult || 0}" min="0" max="20" required>
+    </label>
+    <label>子ども人数：
+      <input type="number" id="editNumC" value="${info.numChild || 0}" min="0" max="20" required>
+    </label>
 
     ${timeKey === 'dinner' ? `
-    <label style="margin-top:10px;">時刻: <select id="editDinnerTime"><option value="">（時刻を選択してください）</option></select></label>
-    <label style="margin-top:10px;">コース: <select id="editCourse"><option value="">（コースの種類を選択してください）</option>
-      <option value="洋3000" ${courseValue==='洋3000' ? 'selected' : ''}>洋3000円</option>
-      <option value="洋4000" ${courseValue==='洋4000' ? 'selected' : ''}>洋4000円</option>
-      <option value="洋5000" ${courseValue==='洋5000' ? 'selected' : ''}>洋5000円</option>
-      <option value="和3000" ${courseValue==='和3000' ? 'selected' : ''}>和3000円</option>
-      <option value="和4000" ${courseValue==='和4000' ? 'selected' : ''}>和4000円</option>
-      <option value="和5000" ${courseValue==='和5000' ? 'selected' : ''}>和5000円</option>
-    </select></label>
+    <label style="margin-top:10px;">時刻:
+      <select id="editDinnerTime">
+        <option value="">（時刻を選択してください）</option>
+      </select>
+    </label>
+
+    <label style="margin-top:10px;">コース:
+      <select id="editCourse">
+        <option value="">（コースの種類を選択してください）</option>
+        <option value="洋3000" ${courseValue==='洋3000' ? 'selected' : ''}>洋3000円</option>
+        <option value="洋4000" ${courseValue==='洋4000' ? 'selected' : ''}>洋4000円</option>
+        <option value="洋5000" ${courseValue==='洋5000' ? 'selected' : ''}>洋5000円</option>
+        <option value="和3000" ${courseValue==='和3000' ? 'selected' : ''}>和3000円</option>
+        <option value="和4000" ${courseValue==='和4000' ? 'selected' : ''}>和4000円</option>
+        <option value="和5000" ${courseValue==='和5000' ? 'selected' : ''}>和5000円</option>
+      </select>
+    </label>
+
     <label style="margin-top:8px;">飲み放題（¥2,500）:
       <div style="display:flex;align-items:center;gap:8px;">
         <button type="button" class="act-btn" id="editDrinkMinus">−</button>
@@ -862,7 +1000,8 @@ function showEditForm(info, date, timeKey, tNo, selectedDate) {
     </label>
     ` : ``}
 
-    <label style="display:block;margin-top:10px;">テーブル（選択テーブルを変更できます）:
+    <label style="display:block;margin-top:10px;">
+      テーブル（選択テーブルを変更できます）:
       <div id="editTableChoice" style="margin-top:6px; display:flex; flex-wrap:wrap; gap:8px;"></div>
     </label>
 
@@ -923,73 +1062,125 @@ function showEditForm(info, date, timeKey, tNo, selectedDate) {
 
   area.appendChild(editDiv);
 
+  // populate editDinnerTime options if dinner
   if (timeKey === 'dinner') {
-    populateDinnerTimeOptions('editDinnerTime', dinnerTimeValue);
-    const edPlus = document.getElementById('editDrinkPlus');
-    const edMinus = document.getElementById('editDrinkMinus');
-    const edDisplay = document.getElementById('editDrinkCount');
-    if (edPlus && edMinus && edDisplay) {
-      const pClone = edPlus.cloneNode(true); edPlus.parentNode.replaceChild(pClone, edPlus);
-      const mClone = edMinus.cloneNode(true); edMinus.parentNode.replaceChild(mClone, edMinus);
-      document.getElementById('editDrinkPlus').addEventListener('click', (ev) => { ev.preventDefault(); ev.stopPropagation(); edDisplay.textContent = String((parseInt(edDisplay.textContent||'0',10)||0) + 1); });
-      document.getElementById('editDrinkMinus').addEventListener('click', (ev) => { ev.preventDefault(); ev.stopPropagation(); const v=(parseInt(edDisplay.textContent||'0',10)||0); if (v>0) edDisplay.textContent=String(v-1); });
+    const sel = document.getElementById('editDinnerTime');
+    if (sel) {
+      sel.innerHTML = '<option value="">（時刻を選択してください）</option>';
+      const times = [];
+      for (let h=17, m=30; ; ) {
+        const hh = String(h).padStart(2,'0');
+        const mm = String(m).padStart(2,'0');
+        times.push(`${hh}:${mm}`);
+        m += 30;
+        if (m >= 60) { m -= 60; h += 1; }
+        if (h > 20 || (h === 20 && m > 30)) break;
+      }
+      if (!times.includes('20:30')) times.push('20:30');
+      times.forEach(t => {
+        const opt = document.createElement('option');
+        opt.value = t;
+        opt.textContent = t;
+        if (t === dinnerTimeValue) opt.selected = true;
+        sel.appendChild(opt);
+      });
     }
   }
 
-  // render edit table choices
+  // render table checkboxes in edit form
   const editTableChoice = document.getElementById('editTableChoice');
   editTableChoice.innerHTML = "";
   TABLES.forEach(tNo => {
-    const span = document.createElement('span'); span.className = 'table-label';
-    const cb = document.createElement('input'); cb.type='checkbox'; cb.className='table-checkbox'; cb.name='editTableNo'; cb.value=tNo; cb.id='edit-tb-'+tNo;
-    if ((info.tables||[]).includes(tNo)) cb.checked = true;
-    const lab = document.createElement('label'); lab.htmlFor = 'edit-tb-'+tNo; lab.textContent = tNo;
-    const cap = document.createElement('span'); cap.className='cap-text'; cap.textContent = TABLE_CAPACITY[tNo] + '人';
-    lab.appendChild(cap); span.appendChild(cb); span.appendChild(lab); editTableChoice.appendChild(span);
+    const span = document.createElement('span');
+    span.className = 'table-label';
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.className = 'table-checkbox';
+    cb.name = 'editTableNo';
+    cb.value = tNo;
+    cb.id = 'edit-tb-' + tNo;
+    if ((info.tables || []).includes(tNo)) cb.checked = true;
+    const lab = document.createElement('label');
+    lab.htmlFor = 'edit-tb-' + tNo;
+    lab.textContent = tNo;
+    const cap = document.createElement('span');
+    cap.className = 'cap-text';
+    cap.textContent = TABLE_CAPACITY[tNo] + '人';
+    lab.appendChild(cap);
+    span.appendChild(cb);
+    span.appendChild(lab);
+    editTableChoice.appendChild(span);
   });
 
-  // init edit extras counts
+  // init edit extra counts (populate from info)
   document.getElementById('editChildPastaValue').value = info.childPlatePastaCount || 0;
   document.getElementById('editChildPastaDisplay').textContent = String(info.childPlatePastaCount || 0);
   document.getElementById('editChildHamburgerValue').value = info.childPlateHamburgerCount || 0;
   document.getElementById('editChildHamburgerDisplay').textContent = String(info.childPlateHamburgerCount || 0);
   document.getElementById('editBirthdayValue').value = info.birthdayPlateCount || 0;
   document.getElementById('editBirthdayDisplay').textContent = String(info.birthdayPlateCount || 0);
-  document.getElementById('editFunamoriValue').value = info.funamoriCount || 0;
-  document.getElementById('editFunamoriDisplay').textContent = String(info.funamoriCount || 0);
+  const initialFunamori = Number(info.funamoriCount || 0) || (info.funamoriAmount ? Math.round((info.funamoriAmount||0)/10000) : 0);
+  document.getElementById('editFunamoriValue').value = initialFunamori;
+  document.getElementById('editFunamoriDisplay').textContent = String(initialFunamori);
 
+  // attach handlers for edit qty buttons
   editDiv.querySelectorAll('.edit-qty-btn').forEach(btn => {
     btn.addEventListener('click', () => {
-      const action = btn.dataset.action; const target = btn.dataset.target;
+      const action = btn.dataset.action;
+      const target = btn.dataset.target;
       editHandleCount(action, target);
     });
   });
 
+  // wire editExtra +/- (dinner)
+  if (timeKey === 'dinner') {
+    const editExtraPlus = document.getElementById('editDrinkPlus');
+    const editExtraMinus = document.getElementById('editDrinkMinus');
+    if (editExtraPlus) editExtraPlus.onclick = () => {
+      const el = document.getElementById('editDrinkCount');
+      el.textContent = String(parseInt(el.textContent||'0',10) + 1);
+    };
+    if (editExtraMinus) editExtraMinus.onclick = () => {
+      const el = document.getElementById('editDrinkCount');
+      const v = parseInt(el.textContent||'0',10);
+      if (v > 0) el.textContent = String(v - 1);
+    };
+  }
+
+  // save / cancel handlers
   document.getElementById('cancelEditBtn').onclick = () => renderList(selectedDate);
 
   document.getElementById('saveEditBtn').onclick = async () => {
     const editName = document.getElementById("editName")?.value.trim() || "";
     const editTel = document.getElementById("editTel")?.value.trim() || "";
-    const editNumA = Number(document.getElementById("editNumA")?.value || 0);
-    const editNumC = Number(document.getElementById("editNumC")?.value || 0);
+    const editNumA = document.getElementById("editNumA")?.value.trim() || "";
+    const editNumC = document.getElementById("editNumC")?.value.trim() || "";
+    const editNote = document.getElementById("editNote")?.value.trim() || "";
     const editCourse = (timeKey === 'dinner' && document.getElementById("editCourse")) ? (document.getElementById("editCourse").value || null) : null;
-    const editDinnerTime = (timeKey === 'dinner' && document.getElementById("editDinnerTime")) ? (document.getElementById("editDinnerTime").value || null) : null;
-    const editDrink = (timeKey === 'dinner' && document.getElementById("editDrinkCount")) ? (parseInt(document.getElementById("editDrinkCount").textContent||'0',10)||0) : 0;
-    if (isNaN(editNumA) || isNaN(editNumC)) { alert("人数入力必須です"); return; }
-    if (editNumA === 0 && editNumC === 0) { alert("大人または子どもどちらか1名以上を指定してください。"); return; }
+    const editExtra = timeKey === 'dinner' ? parseInt(document.getElementById("editDrinkCount")?.textContent||'0',10) : 0;
+
+    if (editNumA === "" || editNumC === "") { alert("人数入力必須です"); return; }
     if (editName && !(/^[ァ-ヴー]+$/.test(editName))) { alert("名前はカタカナのみで入力してください"); return; }
     if (editTel && !(/^[0-9]+$/.test(editTel))) { alert("電話番号は数字のみで入力してください"); return; }
 
+    // collect selected tables
     const tables = [];
     document.querySelectorAll("input[name=editTableNo]:checked").forEach(cb => tables.push(cb.value));
     if (tables.length === 0) { alert("テーブル番号を1つ以上選択してください"); return; }
 
-    if (isDateClosed(date)) { alert("編集対象の日付は休業日です。"); return; }
+    if (isDateClosed(info.date)) {
+      alert("編集対象の日付は休業日です。");
+      return;
+    }
 
-    const totalPeople = (Number(editNumA)||0) + (Number(editNumC)||0);
+    const totalPeople = (Number(editNumA) || 0) + (Number(editNumC) || 0);
     const totalCap = tables.reduce((sum, t) => sum + (Number(TABLE_CAPACITY[t] || 0)), 0);
-    if (totalPeople > totalCap) { alert("選択されたテーブルより予約人数が上回っています。テーブルを追加選択してください。"); return; }
+    if (totalPeople > totalCap) {
+      alert("選択されたテーブルより予約人数が上回っています。テーブルを追加選択してください。。");
+      return;
+    }
 
+    // collect extras
     const eChildPasta = Number(document.getElementById('editChildPastaValue')?.value || 0);
     const eChildHamb = Number(document.getElementById('editChildHamburgerValue')?.value || 0);
     const eBday = Number(document.getElementById('editBirthdayValue')?.value || 0);
@@ -1001,20 +1192,21 @@ function showEditForm(info, date, timeKey, tNo, selectedDate) {
         tel: editTel || null,
         numAdult: editNumA,
         numChild: editNumC,
-        course: editCourse || null,
-        dinnerTime: editDinnerTime || null,
-        drinkCount: editDrink || 0,
-        tables: tables,
         childPlatePastaCount: eChildPasta,
         childPlateHamburgerCount: eChildHamb,
         birthdayPlateCount: eBday,
-        funamoriCount: eFunamori
+        funamoriCount: eFunamori,
+        note: editNote,
+        course: editCourse || null,
+        extraUnder15: editExtra || 0,
+        tables: tables
       });
     } catch (err) {
       console.error('Update failed', err);
       alert('更新に失敗しました: ' + (err.message || err));
       return;
     }
+
     renderList(selectedDate);
   };
 
@@ -1029,7 +1221,7 @@ function showEditForm(info, date, timeKey, tNo, selectedDate) {
   }
 }
 
-/* ---------- Utilities ---------- */
+/* ---------- Helper to populate extras from doc ---------- */
 function populateExtrasFromDoc(docData) {
   const d = docData || {};
   if (document.getElementById('childPastaValue')) document.getElementById('childPastaValue').value = d.childPlatePastaCount || 0;
