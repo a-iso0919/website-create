@@ -7,7 +7,7 @@
   <!-- Google Fonts -->
   <link href="https://fonts.googleapis.com/css2?family=Zen+Kurenaido&family=Montserrat:wght@500;700;800;900&display=swap" rel="stylesheet">
   <!-- External stylesheet -->
-  <link rel="stylesheet" href="styles.css?v=1.5">
+  <link rel="stylesheet" href="styles.css?v=1.6">
   <!-- Firebase setup (compat) -->
   <script src="https://www.gstatic.com/firebasejs/10.10.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.10.0/firebase-firestore-compat.js"></script>
@@ -30,7 +30,6 @@
       </label>
       <label>
         大人人数:
-        <!-- 初期値を0に変更 -->
         <input type="number" id="numAdult" required min="0" max="20" value="0">
       </label>
       <label>
@@ -47,12 +46,11 @@
         <input type="hidden" id="time" required>
       </label>
 
-      <!-- ここからディナー専用オプション（初期は非表示） -->
+      <!-- ディナー専用オプション -->
       <div id="dinnerOptions" style="display:none; grid-column: 1/-1;">
         <fieldset style="border-radius:10px;padding:10px;background:#fff7ea;border:1px solid #efdfc0;">
           <legend style="font-weight:700;color:#6b4423">ディナーコース選択</legend>
 
-          <!-- NEW: ディナー時の時刻プルダウン（17:30 - 20:30、30分刻み） -->
           <label style="display:block;margin-bottom:8px;">
             時刻を選択:
             <select id="dinnerTime">
@@ -75,7 +73,6 @@
 
           <div style="display:flex;align-items:center;gap:12px;margin-top:8px;">
             <div style="flex:1">
-              <!-- 表示名を「飲み放題 ¥2,500」に変更 -->
               <div style="font-weight:600;color:#6b4423">飲み放題 ¥2,500</div>
               <div style="font-size:0.9em;color:#6b4423">※該当数を選択してください</div>
             </div>
@@ -88,7 +85,6 @@
 
         </fieldset>
       </div>
-      <!-- ディナー専用オプション ここまで -->
 
       <label>
         名前（カタカナのみ）:
@@ -98,7 +94,7 @@
         電話番号:
         <input type="tel" id="tel" pattern="^[0-9]+$" placeholder="例：09012345678">
       </label>
-        <!-- 備考部分（横並び ± 表示） -->
+
       <label style="grid-column: 1/-1;">
         備考：
         <div id="extrasSection" class="extras-section">
@@ -146,6 +142,7 @@
         </div>
         <textarea id="note" placeholder="ご要望など自由記入"></textarea>
       </label>
+
       <button type="submit">予約登録</button>
     </form>
 
@@ -154,7 +151,7 @@
   </div>
 
 <script>
-  // Firebase config (same as existing)
+  // Firebase config (existing)
   const firebaseConfig = {
     apiKey: "AIzaSyCIjAeYqS2Bbw60qU6ZUn2q04TlMFD5fdg",
     authDomain: "website-create-shimizunomori.firebaseapp.com",
@@ -168,53 +165,30 @@
   const db = firebase.firestore();
   const RES_COLLECTION = "shimizu_cafe_reservations";
 
-  // closed dates set (臨時休業日の読み込み結果を保持)
+  // state
   let closedDatesSet = new Set();
-
-  // allowDinnerOnSelectedDate: controls whether "dinner" time appears in time choices and in reservation list
   let allowDinnerOnSelectedDate = false;
+  let selectedTime = "";
+  let unsubscribe = null;
 
-  // --- 認証チェック（既存） ---
-  firebase.auth().onAuthStateChanged(user => {
-    if (user) {
-      renderTableChoices();
-      // initial: no date selected -> dinner not allowed
-      allowDinnerOnSelectedDate = false;
-      renderTimeChoices(allowDinnerOnSelectedDate);
-      renderList();
-      // load臨時休業日（Firestore の closed_dates コレクション）
-      loadClosedDates();
-      // init dinner time options & handlers
-      populateDinnerTimeOptions();
-      initExtrasHandlers();
-      initQtyButtonHandlers();
-      initDrinkButtons();
-    } else {
-      window.location.href = 'login.html';
-    }
-  });
-
-  // load閉店日（onSnapshot で監視）
-  function loadClosedDates() {
-    closedDatesSet = new Set();
-    db.collection('closed_dates').onSnapshot(snapshot => {
-      closedDatesSet.clear();
-      snapshot.docs.forEach(d => {
-        const data = d.data();
-        if (data && data.date) closedDatesSet.add(data.date); // date as 'YYYY-MM-DD'
-      });
-    }, err => {
-      console.error('loadClosedDates failed', err);
-    });
+  // ---------------------------
+  // Date parse helpers (cross-browser safe)
+  // ---------------------------
+  function parseYMD(ymd) {
+    if (!ymd || typeof ymd !== 'string') return null;
+    const m = ymd.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (!m) return null;
+    const year = parseInt(m[1], 10);
+    const month = parseInt(m[2], 10) - 1;
+    const day = parseInt(m[3], 10);
+    return new Date(year, month, day);
   }
 
-  // isDefaultClosed: 日曜日 / 第2・第4月曜日 を判定（Date オブジェクト入力）
   function isDefaultClosed(dateObj) {
     if (!dateObj || !(dateObj instanceof Date)) return false;
-    const day = dateObj.getDay(); // 0=Sun,1=Mon...
-    if (day === 0) return true; // every Sunday closed
-
-    if (day === 1) { // Monday -> check 2nd or 4th occurrence in month
+    const day = dateObj.getDay();
+    if (day === 0) return true; // Sunday
+    if (day === 1) { // Monday -> 2nd or 4th
       const year = dateObj.getFullYear();
       const month = dateObj.getMonth();
       let mondayCount = 0;
@@ -227,38 +201,6 @@
     return false;
   }
 
-  function parseYMD(ymd) {
-  // ymd は 'YYYY-MM-DD' を想定
-  if (!ymd || typeof ymd !== 'string') return null;
-  const m = ymd.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (!m) return null;
-  const year = parseInt(m[1], 10);
-  const month = parseInt(m[2], 10) - 1; // JS monthIndex
-  const day = parseInt(m[3], 10);
-  return new Date(year, month, day); // ローカルタイムでの 00:00:00 を生成
-}
-
-// isDefaultClosed: 日曜日 / 第2・第4月曜日 を判定（Date オブジェクト入力）
-// （既存の実装をそのまま使えます）
-function isDefaultClosed(dateObj) {
-  if (!dateObj || !(dateObj instanceof Date)) return false;
-  const day = dateObj.getDay(); // 0=Sun,1=Mon...
-  if (day === 0) return true; // every Sunday closed
-
-  if (day === 1) { // Monday -> check 2nd or 4th occurrence in month
-    const year = dateObj.getFullYear();
-    const month = dateObj.getMonth();
-    let mondayCount = 0;
-    for (let d = 1; d <= dateObj.getDate(); d++) {
-      const dt = new Date(year, month, d);
-      if (dt.getDay() === 1) mondayCount++;
-    }
-    if (mondayCount === 2 || mondayCount === 4) return true;
-  }
-  return false;
-}
-
-  // --- 更新: isDateClosed では parseYMD を使う ---
   function isDateClosed(ymd) {
     if (!ymd) return false;
     const dateObj = parseYMD(ymd);
@@ -267,17 +209,15 @@ function isDefaultClosed(dateObj) {
     if (closedDatesSet.has(ymd)) return true;
     return false;
   }
-  
-  // --- 更新: isFriOrSat でも parseYMD を使う ---
+
   function isFriOrSat(ymd) {
     if (!ymd) return false;
     const d = parseYMD(ymd);
     if (!d) return false;
-    const day = d.getDay(); // 5 = Fri, 6 = Sat
+    const day = d.getDay();
     return (day === 5 || day === 6);
   }
-  
-  // --- 更新: computeExpireAtFromDate も parseYMD を使い確実にローカル日付で加算 ---
+
   function computeExpireAtFromDate(dateStr, days = 7) {
     if (!dateStr) return null;
     const base = parseYMD(dateStr);
@@ -286,9 +226,67 @@ function isDefaultClosed(dateObj) {
     return firebase.firestore.Timestamp.fromDate(expireDate);
   }
 
-  // Populate dinnerTime select with 30-min steps 17:30-20:30
-  function populateDinnerTimeOptions() {
-    const sel = document.getElementById('dinnerTime');
+  // ---------------------------
+  // Session helpers
+  // ---------------------------
+  function saveSelectedDateToSession(date) {
+    try {
+      if (date) sessionStorage.setItem('selectedDate', date);
+      else sessionStorage.removeItem('selectedDate');
+    } catch (e) { /* ignore */ }
+  }
+  function loadSelectedDateFromSession() {
+    try {
+      const d = sessionStorage.getItem('selectedDate');
+      if (d) {
+        const dateInput = document.getElementById('date');
+        if (dateInput) dateInput.value = d;
+        allowDinnerOnSelectedDate = isFriOrSat(d) && !isDateClosed(d);
+        renderTimeChoices(allowDinnerOnSelectedDate);
+        selectedTime = "";
+        renderList(d);
+        return d;
+      }
+    } catch (e) { /* ignore */ }
+    return null;
+  }
+
+  // ---------------------------
+  // init & auth
+  // ---------------------------
+  firebase.auth().onAuthStateChanged(user => {
+    if (user) {
+      renderTableChoices();
+      allowDinnerOnSelectedDate = false;
+      renderTimeChoices(allowDinnerOnSelectedDate);
+      renderList();
+      loadClosedDates();
+      populateDinnerTimeOptions();
+      initExtrasHandlers();
+      initQtyButtonHandlers();
+      initDrinkButtons();
+      loadSelectedDateFromSession();
+    } else {
+      window.location.href = 'login.html';
+    }
+  });
+
+  function loadClosedDates() {
+    closedDatesSet = new Set();
+    db.collection('closed_dates').onSnapshot(snapshot => {
+      closedDatesSet.clear();
+      snapshot.docs.forEach(d => {
+        const data = d.data();
+        if (data && data.date) closedDatesSet.add(data.date);
+      });
+    }, err => console.error('loadClosedDates failed', err));
+  }
+
+  // ---------------------------
+  // UI helpers: dinner times, table choices, time radio
+  // ---------------------------
+  function populateDinnerTimeOptions(selectId = 'dinnerTime', selectedVal = '') {
+    const sel = document.getElementById(selectId);
     if (!sel) return;
     sel.innerHTML = '<option value="">（時刻を選択してください）</option>';
     const times = [];
@@ -305,11 +303,11 @@ function isDefaultClosed(dateObj) {
       const opt = document.createElement('option');
       opt.value = t;
       opt.textContent = t;
+      if (t === selectedVal) opt.selected = true;
       sel.appendChild(opt);
     });
   }
 
-  // top-right カレンダー編集ボタン遷移
   document.getElementById('calendarEditBtn').addEventListener('click', () => {
     window.location.href = 'calendar.html';
   });
@@ -322,7 +320,6 @@ function isDefaultClosed(dateObj) {
     { key: "dinner", label: "ディナー" }
   ];
 
-  // テーブル選択描画
   function renderTableChoices(selected=[]) {
     const tc = document.getElementById("tableChoice");
     tc.innerHTML = "";
@@ -330,59 +327,40 @@ function isDefaultClosed(dateObj) {
       const span = document.createElement("span");
       span.className = "table-label";
       const cb = document.createElement("input");
-      cb.type = "checkbox";
-      cb.className = "table-checkbox";
-      cb.name = "tableNo";
-      cb.value = tNo;
-      cb.id = "tb-"+tNo;
+      cb.type = "checkbox"; cb.className = "table-checkbox";
+      cb.name = "tableNo"; cb.value = tNo; cb.id = "tb-"+tNo;
       if (selected.includes(tNo)) cb.checked = true;
       const label = document.createElement("label");
-      label.htmlFor = "tb-"+tNo;
-      label.textContent = tNo;
-      const cap = document.createElement("span");
-      cap.className = "cap-text";
+      label.htmlFor = "tb-"+tNo; label.textContent = tNo;
+      const cap = document.createElement("span"); cap.className = "cap-text";
       cap.textContent = TABLE_CAPACITY[tNo]+"人";
       label.appendChild(cap);
-      span.appendChild(cb);
-      span.appendChild(label);
+      span.appendChild(cb); span.appendChild(label);
       tc.appendChild(span);
     });
   }
 
-  // 時間帯ボタン描画（allowDinner を渡してディナーを表示するか制御）
-  let selectedTime = "";
   function renderTimeChoices(allowDinner = true, initKey="") {
     const tc = document.getElementById("timeChoices");
     if (!tc) return;
     tc.innerHTML = "";
-
-    // Determine which TIMES to render based on allowDinner
-    const timesToRender = TIMES.filter(t => {
-      if (t.key === 'dinner' && !allowDinner) return false;
-      return true;
-    });
-
+    const timesToRender = TIMES.filter(t => !(t.key === 'dinner' && !allowDinner));
     if (initKey && timesToRender.some(x => x.key === initKey)) {
       selectedTime = initKey;
       const hidden = document.getElementById("time");
       if (hidden) hidden.value = initKey;
     } else {
-      // if initKey not allowed, ensure selectedTime is not 'dinner'
       if (!allowDinner && selectedTime === 'dinner') {
         selectedTime = "";
         const hidden = document.getElementById("time");
         if (hidden) hidden.value = "";
       }
     }
-
     timesToRender.forEach(t => {
       const btn = document.createElement("button");
-      btn.type = "button";
-      btn.className = "time-radio";
-      btn.setAttribute("data-time", t.key);
-      btn.textContent = t.label;
+      btn.type = "button"; btn.className = "time-radio";
+      btn.setAttribute("data-time", t.key); btn.textContent = t.label;
       if (t.key === selectedTime) btn.classList.add("selected");
-
       btn.addEventListener("click", (ev) => {
         ev.stopPropagation();
         const prev = tc.querySelector(".time-radio.selected");
@@ -393,21 +371,16 @@ function isDefaultClosed(dateObj) {
         if (hidden) hidden.value = t.key;
         updateDinnerOptionsVisibility();
       });
-
       tc.appendChild(btn);
     });
-
-    // reflect initial visibility for dinner options
     updateDinnerOptionsVisibility();
   }
 
-  // ディナーオプションの表示・活性化制御（selectedTime が dinner の時のみ表示）
   function updateDinnerOptionsVisibility() {
     const container = document.getElementById("dinnerOptions");
     const select = document.getElementById("dinnerCourse");
     const dinnerTimeSel = document.getElementById("dinnerTime");
     if (!container) return;
-    // Show dinner options only if dinner is selected AND dinner is allowed on selected date
     if (selectedTime === 'dinner' && allowDinnerOnSelectedDate) {
       container.style.display = 'block';
       if (select) select.disabled = false;
@@ -416,51 +389,102 @@ function isDefaultClosed(dateObj) {
       container.style.display = 'none';
       if (select) { select.value = ""; select.disabled = true; }
       if (dinnerTimeSel) { dinnerTimeSel.value = ""; dinnerTimeSel.disabled = true; }
-      // reset drink count display when hiding
       const dc = document.getElementById('drinkCount');
       if (dc) dc.textContent = '0';
     }
   }
 
-  // ドリンク（飲み放題） +/- ハンドラ初期化
-  function initDrinkButtons() {
-    // defensive: replace nodes to clear prior listeners (avoid double increments)
-    const plus = document.getElementById('drinkPlus');
-    const minus = document.getElementById('drinkMinus');
-    const display = document.getElementById('drinkCount');
-    if (!display) return;
-
-    if (plus && minus) {
-      const plusClone = plus.cloneNode(true);
-      plus.parentNode.replaceChild(plusClone, plus);
-      const minusClone = minus.cloneNode(true);
-      minus.parentNode.replaceChild(minusClone, minus);
-
-      // reselect clones
-      const newPlus = document.getElementById('drinkPlus');
-      const newMinus = document.getElementById('drinkMinus');
-
-      if (newPlus) {
-        newPlus.addEventListener('click', (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          const v = parseInt(display.textContent || '0', 10) || 0;
-          display.textContent = String(v + 1);
-        });
-      }
-      if (newMinus) {
-        newMinus.addEventListener('click', (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          const v = parseInt(display.textContent || '0', 10) || 0;
-          if (v > 0) display.textContent = String(v - 1);
-        });
-      }
-    }
+  // ---------------------------
+  // Extras handlers (qty buttons)
+  // ---------------------------
+  function initExtrasHandlers() {
+    document.querySelectorAll('.extras-control .qty-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const action = btn.dataset.action;
+        const target = btn.dataset.target;
+        if (action && target) handleCount(action, target);
+      });
+    });
+    updateExtrasPreview();
   }
 
-  // 日付選択で一覧も絞り込み（休業日チェック + 金/土以外はディナー非表示）
-  let selectedDateVal = "";
+  function handleCount(action, key) {
+    const display = document.getElementById(key + 'Display');
+    const input = document.getElementById(key + 'Value');
+    let v = Number(input.value) || 0;
+    if (action === 'increase') v++;
+    else v = Math.max(0, v - 1);
+    input.value = v;
+    if (display) display.textContent = String(v);
+    updateExtrasPreview();
+  }
+
+  function updateExtrasPreview(){ const previewEl = document.getElementById('extrasPricePreview'); if (previewEl) previewEl.textContent = ''; }
+
+  function getExtrasForSave() {
+    const pasta = Number(document.getElementById('childPastaValue').value) || 0;
+    const hamb = Number(document.getElementById('childHamburgerValue').value) || 0;
+    const bday = Number(document.getElementById('birthdayValue').value) || 0;
+    const funaCount = Number(document.getElementById('funamoriValue').value) || 0;
+    return {
+      childPlatePastaCount: pasta,
+      childPlateHamburgerCount: hamb,
+      birthdayPlateCount: bday,
+      funamoriCount: funaCount,
+      extrasUnitPrices: { childPlateUnit: 650, birthdayPlateUnit: 1300 }
+    };
+  }
+
+  // Defensive qty init (clear old listeners)
+  function initQtyButtonHandlers() {
+    document.querySelectorAll('.qty-btn').forEach(btn => {
+      const clone = btn.cloneNode(true);
+      btn.parentNode.replaceChild(clone, btn);
+    });
+    document.querySelectorAll('.qty-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.preventDefault(); e.stopPropagation();
+        const action = btn.dataset.action;
+        const target = btn.dataset.target;
+        if (action && target) handleCount(action === 'increase' ? 'increase' : 'decrease', target);
+      });
+    });
+  }
+
+  // ---------------------------
+  // Drink buttons (idempotent)
+  // ---------------------------
+  function initDrinkButtons() {
+    const display = document.getElementById('drinkCount');
+    if (!display) return;
+    const plus = document.getElementById('drinkPlus');
+    const minus = document.getElementById('drinkMinus');
+    if (!plus || !minus) return;
+
+    // replace to clear prior listeners
+    const plusClone = plus.cloneNode(true);
+    plus.parentNode.replaceChild(plusClone, plus);
+    const minusClone = minus.cloneNode(true);
+    minus.parentNode.replaceChild(minusClone, minus);
+
+    const newPlus = document.getElementById('drinkPlus');
+    const newMinus = document.getElementById('drinkMinus');
+
+    newPlus.addEventListener('click', (e) => {
+      e.preventDefault(); e.stopPropagation();
+      const v = parseInt(display.textContent || '0', 10) || 0;
+      display.textContent = String(v + 1);
+    });
+    newMinus.addEventListener('click', (e) => {
+      e.preventDefault(); e.stopPropagation();
+      const v = parseInt(display.textContent || '0', 10) || 0;
+      if (v > 0) display.textContent = String(v - 1);
+    });
+  }
+
+  // ---------------------------
+  // Date change handler (uses parseYMD)
+  // ---------------------------
   document.getElementById("date").addEventListener("change", function(e){
     const chosen = e.target.value;
     if (!chosen) {
@@ -468,71 +492,59 @@ function isDefaultClosed(dateObj) {
       allowDinnerOnSelectedDate = false;
       renderTimeChoices(allowDinnerOnSelectedDate);
       renderList('');
+      saveSelectedDateToSession('');
       return;
     }
-    // block Sundays, 2nd/4th Mondays, and closedDates
     if (isDateClosed(chosen)) {
       alert("選択した日は休業日のため予約できません。");
-      e.target.value = ""; // reset selection
+      e.target.value = "";
       selectedDateVal = "";
       allowDinnerOnSelectedDate = false;
       renderTimeChoices(allowDinnerOnSelectedDate);
       renderList('');
+      saveSelectedDateToSession('');
       return;
     }
-
-    // determine if dinner allowed for this date (only Fri or Sat)
     allowDinnerOnSelectedDate = isFriOrSat(chosen);
-
-    // If dinner not allowed and currently selected time is dinner, clear selection
     if (!allowDinnerOnSelectedDate && selectedTime === 'dinner') {
       selectedTime = "";
       const hidden = document.getElementById("time");
       if (hidden) hidden.value = "";
     }
-
-    // re-render time choices with dinner visibility according to allowDinnerOnSelectedDate
     renderTimeChoices(allowDinnerOnSelectedDate);
-
     selectedDateVal = chosen;
+    saveSelectedDateToSession(selectedDateVal);
     renderList(selectedDateVal);
   });
 
-  // 予約登録（with table capacity check） — expireAt を予約日 + 7日で追加
+  // ---------------------------
+  // Form submit (validation + save)
+  // ---------------------------
   document.getElementById("resForm").onsubmit = async function(e) {
     e.preventDefault();
-  
     const date = document.getElementById("date")?.value || "";
     const time = document.getElementById("time")?.value || "";
-    const numAdultRaw = document.getElementById("numAdult")?.value;
-    const numChildRaw = document.getElementById("numChild")?.value;
-    const numAdult = Number(numAdultRaw || 0);
-    const numChild = Number(numChildRaw || 0);
+    const numAdult = Number(document.getElementById("numAdult")?.value || 0);
+    const numChild = Number(document.getElementById("numChild")?.value || 0);
     const name = document.getElementById("name")?.value.trim() || "";
     const tel = document.getElementById("tel")?.value.trim() || "";
     const note = document.getElementById("note")?.value.trim() || "";
-  
-    // collect selected tables
+
     const tables = [];
     document.querySelectorAll("input[name=tableNo]:checked").forEach(cb => tables.push(cb.value));
-  
-    // ディナー追加データ
+
     const course = document.getElementById("dinnerCourse") ? document.getElementById("dinnerCourse").value || null : null;
     const dinnerTime = document.getElementById("dinnerTime") ? document.getElementById("dinnerTime").value || null : null;
     const drinkCount = document.getElementById("drinkCount") ? parseInt(document.getElementById("drinkCount").textContent||'0',10) : 0;
 
-    // 必須項目チェック
     if (!date || !time || isNaN(numAdult) || isNaN(numChild)) {
       alert("日付・時間・人数は必須です");
       return;
     }
-
-    // 新: 大人と子どもどちらも0ならエラー
-    if ((Number(numAdult) === 0) && (Number(numChild) === 0)) {
+    if (numAdult === 0 && numChild === 0) {
       alert("大人または子どもどちらか1名以上を指定してください。");
       return;
     }
-
     if (name && !(/^[ァ-ヴー]+$/.test(name))) {
       alert("名前はカタカナのみで入力してください");
       return;
@@ -545,45 +557,33 @@ function isDefaultClosed(dateObj) {
       alert("テーブル番号を選択してください");
       return;
     }
-
-    // If dinner selected, ensure dinnerTime chosen
-    if (time === 'dinner') {
-      if (!dinnerTime) {
-        alert('ディナーの時刻を選択してください。');
-        return;
-      }
+    if (time === 'dinner' && !dinnerTime) {
+      alert('ディナーの時刻を選択してください。');
+      return;
     }
-
-    // New: disallow booking on closed date just before saving (defensive)
     if (isDateClosed(date)) {
       alert("選択した日は休業日のため予約できません。");
       return;
     }
-
-    // If time is dinner but dinner is not allowed on the selected date, block it
     if (time === 'dinner' && !allowDinnerOnSelectedDate) {
       alert("選択された日付ではディナーは受け付けていません。");
       return;
     }
-  
-    // 選択テーブル合計キャパチェック
+
     const totalPeople = numAdult + numChild;
-    const totalCap = tables.reduce((sum, t) => sum + (Number(TABLE_CAPACITY[t] || 0)), 0);
+    const totalCap = tables.reduce((s,t)=>s + Number(TABLE_CAPACITY[t] || 0), 0);
     if (totalPeople > totalCap) {
       alert("選択されたテーブルより予約人数が上回っています。テーブルを追加選択してください。");
       return;
     }
-  
-    // 重複チェック
+
     try {
-      let q = db.collection(RES_COLLECTION)
-        .where("date", "==", date).where("time", "==", time);
-      // If dinner, narrow by dinnerTime
-      if (time === 'dinner' && dinnerTime) q = q.where('dinnerTime', '==', dinnerTime);
+      let q = db.collection(RES_COLLECTION).where("date","==",date).where("time","==",time);
+      if (time === 'dinner' && dinnerTime) q = q.where('dinnerTime','==',dinnerTime);
       const snapshot = await q.get();
       const overlap = snapshot.docs.some(doc => {
         const r = doc.data();
-        return (r.tables||[]).some(t=>tables.includes(t));
+        return (r.tables||[]).some(t => tables.includes(t));
       });
       if (overlap) {
         alert("選択したテーブルで既に予約があります");
@@ -594,11 +594,10 @@ function isDefaultClosed(dateObj) {
       alert('予約の重複チェックに失敗しました: ' + (err.message || err));
       return;
     }
-  
-    // 保存（extras をマージ） — expireAt を予約日 + 7日で追加
+
     try {
-      const extras = (typeof getExtrasForSave === 'function') ? getExtrasForSave() : {};
-      const expireAt = computeExpireAtFromDate(date, 7); // 予約日 + 7日
+      const extras = getExtrasForSave();
+      const expireAt = computeExpireAtFromDate(date,7);
       await db.collection(RES_COLLECTION).add(Object.assign({
         date, time, numAdult, numChild, tables, name, tel, note,
         course: course || null,
@@ -612,12 +611,15 @@ function isDefaultClosed(dateObj) {
       alert('予約登録に失敗しました: ' + (err.message || err));
       return;
     }
-  
-    // reset
+
+    // keep date in session, clear other fields but restore date
+    saveSelectedDateToSession(date);
     document.getElementById("resForm").reset();
     document.getElementById("time").value = "";
+    const dateInput = document.getElementById('date');
+    if (dateInput) dateInput.value = date;
     selectedTime = "";
-    allowDinnerOnSelectedDate = false;
+    allowDinnerOnSelectedDate = isFriOrSat(date) && !isDateClosed(date);
     updateDinnerOptionsVisibility();
     if (typeof populateExtrasFromDoc === 'function') populateExtrasFromDoc({});
     renderTableChoices();
@@ -626,13 +628,12 @@ function isDefaultClosed(dateObj) {
     renderList(selectedDateVal);
   };
 
-  // --- renderList / drawTable / showEditForm / extras handlers ---
-
-  let unsubscribe = null;
+  // ---------------------------
+  // renderList & drawTable
+  // ---------------------------
   function renderList(selectedDate) {
     const area = document.getElementById("listArea");
     area.innerHTML = "";
-
     if (!selectedDate) {
       if (typeof unsubscribe === 'function') {
         try { unsubscribe(); } catch(e){ /* ignore */ }
@@ -676,7 +677,7 @@ function isDefaultClosed(dateObj) {
           childPlatePastaCount: r.childPlatePastaCount || 0,
           childPlateHamburgerCount: r.childPlateHamburgerCount || 0,
           birthdayPlateCount: r.birthdayPlateCount || 0,
-          funamoriCount: r.funamoriCount || (r.funamoriAmount ? Math.round((r.funamoriAmount||0)/10000) : 0),
+          funamoriCount: r.funamoriCount || 0,
           extrasTotal: r.extrasTotal || 0,
           _id: r._id, index: idx, tables: r.tables
         };
@@ -690,11 +691,7 @@ function isDefaultClosed(dateObj) {
       dateTitle.textContent = date;
       area.appendChild(dateTitle);
 
-      // decide which TIMES to show here too (if dinner not allowed, skip dinner group)
-      const timesToShow = TIMES.filter(t => {
-        if (t.key === 'dinner' && !allowDinnerOnSelectedDate) return false;
-        return true;
-      });
+      const timesToShow = TIMES.filter(t => !(t.key === 'dinner' && !allowDinnerOnSelectedDate));
 
       timesToShow.forEach(({ key: timeKey, label }) => {
         const title = document.createElement("div");
@@ -706,7 +703,6 @@ function isDefaultClosed(dateObj) {
         const table = document.createElement("table");
         const thead = document.createElement("thead");
 
-        // ヘッダ：ディナーなら「時間」「コース」を含める（順番指定）
         if (timeKey === 'dinner') {
           thead.innerHTML =
             "<tr>" +
@@ -724,17 +720,12 @@ function isDefaultClosed(dateObj) {
 
         TABLES.forEach((tNo, tIndex) => {
           const tr = document.createElement("tr");
-
-          const tdNo = document.createElement("td");
-          tdNo.className = "table-no";
-          tdNo.textContent = tNo;
+          const tdNo = document.createElement("td"); tdNo.className = "table-no"; tdNo.textContent = tNo;
           const hasRes = grouped[date] && grouped[date][timeKey] && grouped[date][timeKey][tNo];
           if (!hasRes) tdNo.classList.add('available');
           tr.appendChild(tdNo);
 
-          const tdCap = document.createElement("td");
-          tdCap.className = "cap-cell";
-          tdCap.textContent = TABLE_CAPACITY[tNo] + "人";
+          const tdCap = document.createElement("td"); tdCap.className = "cap-cell"; tdCap.textContent = TABLE_CAPACITY[tNo] + "人";
           tr.appendChild(tdCap);
 
           if (hasRes) {
@@ -745,76 +736,21 @@ function isDefaultClosed(dateObj) {
             if (isFirst) {
               const rowspan = Math.max(1, orderedResTables.length);
 
-              // 大人 / 子ども
-              const tdNumA = document.createElement("td");
-              tdNumA.className = "num merged-cell";
-              tdNumA.textContent = info.numAdult;
-              tdNumA.rowSpan = rowspan;
-              tdNumA.style.verticalAlign = "middle";
-              tr.appendChild(tdNumA);
-
-              const tdNumC = document.createElement("td");
-              tdNumC.className = "childnum merged-cell";
-              tdNumC.textContent = info.numChild;
-              tdNumC.rowSpan = rowspan;
-              tdNumC.style.verticalAlign = "middle";
-              tr.appendChild(tdNumC);
+              const tdNumA = document.createElement("td"); tdNumA.className = "num merged-cell"; tdNumA.textContent = info.numAdult; tdNumA.rowSpan = rowspan; tdNumA.style.verticalAlign = "middle"; tr.appendChild(tdNumA);
+              const tdNumC = document.createElement("td"); tdNumC.className = "childnum merged-cell"; tdNumC.textContent = info.numChild; tdNumC.rowSpan = rowspan; tdNumC.style.verticalAlign = "middle"; tr.appendChild(tdNumC);
 
               if (timeKey === 'dinner') {
-                // 時間
-                const tdTime = document.createElement("td");
-                tdTime.className = "time-cell merged-cell";
-                tdTime.textContent = info.dinnerTime || "";
-                tdTime.rowSpan = rowspan;
-                tdTime.style.verticalAlign = "middle";
-                tdTime.style.textAlign = "center";
-                tr.appendChild(tdTime);
-
-                // コース
-                const tdCourse = document.createElement("td");
-                tdCourse.className = "course-cell merged-cell";
-                tdCourse.textContent = info.course || "";
-                tdCourse.rowSpan = rowspan;
-                tdCourse.style.verticalAlign = "middle";
-                tdCourse.style.textAlign = "center";
-                tr.appendChild(tdCourse);
-
-                // 名前・電話は後に追加
-                const tdName = document.createElement("td");
-                tdName.className = "reserved merged-cell";
-                tdName.textContent = info.name || "";
-                tdName.rowSpan = rowspan;
-                tdName.style.verticalAlign = "middle";
-                tr.appendChild(tdName);
-
-                const tdTel = document.createElement("td");
-                tdTel.className = "phone merged-cell";
-                tdTel.textContent = info.tel || "";
-                tdTel.rowSpan = rowspan;
-                tdTel.style.verticalAlign = "middle";
-                tr.appendChild(tdTel);
+                const tdTime = document.createElement("td"); tdTime.className = "time-cell merged-cell"; tdTime.textContent = info.dinnerTime || ""; tdTime.rowSpan = rowspan; tdTime.style.verticalAlign = "middle"; tdTime.style.textAlign = "center"; tr.appendChild(tdTime);
+                const tdCourse = document.createElement("td"); tdCourse.className = "course-cell merged-cell"; tdCourse.textContent = info.course || ""; tdCourse.rowSpan = rowspan; tdCourse.style.verticalAlign = "middle"; tdCourse.style.textAlign = "center"; tr.appendChild(tdCourse);
+                const tdName = document.createElement("td"); tdName.className = "reserved merged-cell"; tdName.textContent = info.name || ""; tdName.rowSpan = rowspan; tdName.style.verticalAlign = "middle"; tr.appendChild(tdName);
+                const tdTel = document.createElement("td"); tdTel.className = "phone merged-cell"; tdTel.textContent = info.tel || ""; tdTel.rowSpan = rowspan; tdTel.style.verticalAlign = "middle"; tr.appendChild(tdTel);
               } else {
-                // non-dinner: 名前 / 電話
-                const tdName = document.createElement("td");
-                tdName.className = "reserved merged-cell";
-                tdName.textContent = info.name || "";
-                tdName.rowSpan = rowspan;
-                tdName.style.verticalAlign = "middle";
-                tr.appendChild(tdName);
-
-                const tdTel = document.createElement("td");
-                tdTel.className = "phone merged-cell";
-                tdTel.textContent = info.tel || "";
-                tdTel.rowSpan = rowspan;
-                tdTel.style.verticalAlign = "middle";
-                tr.appendChild(tdTel);
+                const tdName = document.createElement("td"); tdName.className = "reserved merged-cell"; tdName.textContent = info.name || ""; tdName.rowSpan = rowspan; tdName.style.verticalAlign = "middle"; tr.appendChild(tdName);
+                const tdTel = document.createElement("td"); tdTel.className = "phone merged-cell"; tdTel.textContent = info.tel || ""; tdTel.rowSpan = rowspan; tdTel.style.verticalAlign = "middle"; tr.appendChild(tdTel);
               }
 
-              // 備考（飲み放題を含む）
-              const tdNote = document.createElement("td");
-              tdNote.className = "note-cell merged-cell";
+              const tdNote = document.createElement("td"); tdNote.className = "note-cell merged-cell";
               let noteStr = [];
-              // include drinkCount as "飲み放題×N" if >0
               if (info.drinkCount && info.drinkCount > 0) noteStr.push(`飲み放題×${info.drinkCount}`);
               if (info.childPlatePastaCount && info.childPlatePastaCount > 0) noteStr.push(`パスタ x${info.childPlatePastaCount}`);
               if (info.childPlateHamburgerCount && info.childPlateHamburgerCount > 0) noteStr.push(`ハンバーグ x${info.childPlateHamburgerCount}`);
@@ -822,56 +758,29 @@ function isDefaultClosed(dateObj) {
               if ((info.funamoriCount || 0) > 0) noteStr.push(`舟盛り x${info.funamoriCount}`);
               if (info.note && info.note.trim() !== "") noteStr.push(info.note);
               tdNote.textContent = noteStr.join("／");
-              tdNote.rowSpan = rowspan;
-              tdNote.style.verticalAlign = "middle";
-              tdNote.style.textAlign = "center";
-              tr.appendChild(tdNote);
+              tdNote.rowSpan = rowspan; tdNote.style.verticalAlign = "middle"; tdNote.style.textAlign = "center"; tr.appendChild(tdNote);
 
-              const tdAct = document.createElement("td");
-              tdAct.className = "action-cell merged-cell";
-              tdAct.rowSpan = rowspan;
-              tdAct.style.verticalAlign = "middle";
-              tdAct.style.textAlign = "center";
-
-              const removeBtn = document.createElement("button");
-              removeBtn.className = "act-btn";
-              removeBtn.textContent = "削除";
+              const tdAct = document.createElement("td"); tdAct.className = "action-cell merged-cell"; tdAct.rowSpan = rowspan; tdAct.style.verticalAlign = "middle"; tdAct.style.textAlign = "center";
+              const removeBtn = document.createElement("button"); removeBtn.className = "act-btn"; removeBtn.textContent = "削除";
               removeBtn.onclick = async () => {
                 if (confirm("本当に削除してもよいですか？")) {
-                  try {
-                    await db.collection(RES_COLLECTION).doc(info._id).delete();
-                  } catch (err) {
-                    console.error('Delete failed', err);
-                    alert('削除に失敗しました: ' + (err.message || err));
-                  }
+                  try { await db.collection(RES_COLLECTION).doc(info._id).delete(); } catch (err) { console.error('Delete failed', err); alert('削除に失敗しました: ' + (err.message || err)); }
                 }
               };
-
-              const editBtn = document.createElement("button");
-              editBtn.className = "act-btn";
-              editBtn.textContent = "変更";
-              editBtn.style.marginLeft = "8px";
+              const editBtn = document.createElement("button"); editBtn.className = "act-btn"; editBtn.textContent = "変更"; editBtn.style.marginLeft = "8px";
               editBtn.onclick = () => { showEditForm(info, date, timeKey, tNo, selectedDate); };
-
-              tdAct.appendChild(removeBtn);
-              tdAct.appendChild(editBtn);
-              tr.appendChild(tdAct);
+              tdAct.appendChild(removeBtn); tdAct.appendChild(editBtn); tr.appendChild(tdAct);
             }
           } else {
             Array(6 + (timeKey === 'dinner' ? 2 : 0)).fill(0).forEach(() => {
-              const td = document.createElement("td");
-              td.className = "empty";
-              td.textContent = '';
-              tr.appendChild(td);
+              const td = document.createElement("td"); td.className = "empty"; td.textContent = ''; tr.appendChild(td);
             });
           }
 
           const nextTable = TABLES[tIndex + 1];
           if (hasRes && nextTable) {
             const nextInfo = grouped[date] && grouped[date][timeKey] && grouped[date][timeKey][nextTable];
-            if (nextInfo && nextInfo._id === grouped[date][timeKey][tNo]._id) {
-              tr.classList.add('no-divider');
-            }
+            if (nextInfo && nextInfo._id === grouped[date][timeKey][tNo]._id) tr.classList.add('no-divider');
           }
 
           tbody.appendChild(tr);
@@ -884,7 +793,9 @@ function isDefaultClosed(dateObj) {
     });
   }
 
-  // showEditForm: full implementation with editable extras and table re-selection
+  // ---------------------------
+  // Edit form (complete)
+  // ---------------------------
   function showEditForm(info, date, timeKey, tNo, selectedDate) {
     const area = document.getElementById("listArea");
     area.innerHTML = "";
@@ -895,46 +806,24 @@ function isDefaultClosed(dateObj) {
     const dinnerTimeValue = info.dinnerTime || "";
     const editDrinkValue = info.drinkCount || 0;
 
-    // Build HTML: includes table-choice area and editable extras (edit-prefixed IDs)
     editDiv.innerHTML = `
-      <h3 style="margin:7px 0 13px 7px;font-size:1.02em;color:#a77f50">
-        変更（${date} ${tNo} ${timeKey}）
-      </h3>
+      <h3 style="margin:7px 0 13px 7px;font-size:1.02em;color:#a77f50">変更（${date} ${tNo} ${timeKey}）</h3>
 
-      <label>名前：
-        <input type="text" id="editName" value="${(info.name||'').replace(/"/g,'&quot;')}" placeholder="例：カトウ">
-      </label>
-
-      <label>電話番号：
-        <input type="tel" id="editTel" value="${(info.tel||'').replace(/"/g,'&quot;')}" placeholder="例：09012345678">
-      </label>
-
-      <label>大人人数：
-        <input type="number" id="editNumA" value="${info.numAdult}" min="0" max="10" required>
-      </label>
-      <label>子ども人数：
-        <input type="number" id="editNumC" value="${info.numChild}" min="0" max="10" required>
-      </label>
+      <label>名前：<input type="text" id="editName" value="${(info.name||'').replace(/"/g,'&quot;')}" placeholder="例：カトウ"></label>
+      <label>電話番号：<input type="tel" id="editTel" value="${(info.tel||'').replace(/"/g,'&quot;')}" placeholder="例：09012345678"></label>
+      <label>大人人数：<input type="number" id="editNumA" value="${info.numAdult || 0}" min="0" max="20" required></label>
+      <label>子ども人数：<input type="number" id="editNumC" value="${info.numChild || 0}" min="0" max="20" required></label>
 
       ${timeKey === 'dinner' ? `
-      <label style="margin-top:10px;">時刻:
-        <select id="editDinnerTime">
-          <option value="">（時刻を選択してください）</option>
-        </select>
-      </label>
-
-      <label style="margin-top:10px;">コース:
-        <select id="editCourse">
-          <option value="">（コースの種類を選択してください）</option>
-          <option value="洋3000" ${courseValue==='洋3000' ? 'selected' : ''}>洋3000円</option>
-          <option value="洋4000" ${courseValue==='洋4000' ? 'selected' : ''}>洋4000円</option>
-          <option value="洋5000" ${courseValue==='洋5000' ? 'selected' : ''}>洋5000円</option>
-          <option value="和3000" ${courseValue==='和3000' ? 'selected' : ''}>和3000円</option>
-          <option value="和4000" ${courseValue==='和4000' ? 'selected' : ''}>和4000円</option>
-          <option value="和5000" ${courseValue==='和5000' ? 'selected' : ''}>和5000円</option>
-        </select>
-      </label>
-
+      <label style="margin-top:10px;">時刻: <select id="editDinnerTime"><option value="">（時刻を選択してください）</option></select></label>
+      <label style="margin-top:10px;">コース: <select id="editCourse"><option value="">（コースの種類を選択してください）</option>
+        <option value="洋3000" ${courseValue==='洋3000' ? 'selected' : ''}>洋3000円</option>
+        <option value="洋4000" ${courseValue==='洋4000' ? 'selected' : ''}>洋4000円</option>
+        <option value="洋5000" ${courseValue==='洋5000' ? 'selected' : ''}>洋5000円</option>
+        <option value="和3000" ${courseValue==='和3000' ? 'selected' : ''}>和3000円</option>
+        <option value="和4000" ${courseValue==='和4000' ? 'selected' : ''}>和4000円</option>
+        <option value="和5000" ${courseValue==='和5000' ? 'selected' : ''}>和5000円</option>
+      </select></label>
       <label style="margin-top:8px;">飲み放題（¥2,500）:
         <div style="display:flex;align-items:center;gap:8px;">
           <button type="button" class="act-btn" id="editDrinkMinus">−</button>
@@ -944,8 +833,7 @@ function isDefaultClosed(dateObj) {
       </label>
       ` : ``}
 
-      <label style="display:block;margin-top:10px;">
-        テーブル（選択テーブルを変更できます）:
+      <label style="display:block;margin-top:10px;">テーブル（選択テーブルを変更できます）:
         <div id="editTableChoice" style="margin-top:6px; display:flex; flex-wrap:wrap; gap:8px;"></div>
       </label>
 
@@ -1006,101 +894,50 @@ function isDefaultClosed(dateObj) {
 
     area.appendChild(editDiv);
 
-    // populate editDinnerTime options if dinner
+    // populate editDinnerTime & bind edit drink handlers if dinner
     if (timeKey === 'dinner') {
-      const sel = document.getElementById('editDinnerTime');
-      if (sel) {
-        sel.innerHTML = '<option value="">（時刻を選択してください）</option>';
-        const times = [];
-        for (let h=17, m=30; ; ) {
-          const hh = String(h).padStart(2,'0');
-          const mm = String(m).padStart(2,'0');
-          times.push(`${hh}:${mm}`);
-          m += 30;
-          if (m >= 60) { m -= 60; h += 1; }
-          if (h > 20 || (h === 20 && m > 30)) break;
-        }
-        if (!times.includes('20:30')) times.push('20:30');
-        times.forEach(t => {
-          const opt = document.createElement('option');
-          opt.value = t;
-          opt.textContent = t;
-          if (t === dinnerTimeValue) opt.selected = true;
-          sel.appendChild(opt);
-        });
-      }
-
-      // init edit drink +/- handlers (defensive clone -> bind)
+      populateDinnerTimeOptions('editDinnerTime', dinnerTimeValue);
       const edPlus = document.getElementById('editDrinkPlus');
       const edMinus = document.getElementById('editDrinkMinus');
       const edDisplay = document.getElementById('editDrinkCount');
       if (edPlus && edMinus && edDisplay) {
-        const plusClone = edPlus.cloneNode(true);
-        edPlus.parentNode.replaceChild(plusClone, edPlus);
-        const minusClone = edMinus.cloneNode(true);
-        edMinus.parentNode.replaceChild(minusClone, edMinus);
-
-        const newPlus = document.getElementById('editDrinkPlus');
-        const newMinus = document.getElementById('editDrinkMinus');
-
-        if (newPlus) newPlus.addEventListener('click', (ev) => {
-          ev.preventDefault(); ev.stopPropagation();
-          edDisplay.textContent = String((parseInt(edDisplay.textContent||'0',10)||0) + 1);
-        });
-        if (newMinus) newMinus.addEventListener('click', (ev) => {
-          ev.preventDefault(); ev.stopPropagation();
-          const v = (parseInt(edDisplay.textContent||'0',10)||0);
-          if (v > 0) edDisplay.textContent = String(v - 1);
-        });
+        const pClone = edPlus.cloneNode(true); edPlus.parentNode.replaceChild(pClone, edPlus);
+        const mClone = edMinus.cloneNode(true); edMinus.parentNode.replaceChild(mClone, edMinus);
+        document.getElementById('editDrinkPlus').addEventListener('click', (ev) => { ev.preventDefault(); ev.stopPropagation(); edDisplay.textContent = String((parseInt(edDisplay.textContent||'0',10)||0) + 1); });
+        document.getElementById('editDrinkMinus').addEventListener('click', (ev) => { ev.preventDefault(); ev.stopPropagation(); const v=(parseInt(edDisplay.textContent||'0',10)||0); if (v>0) edDisplay.textContent=String(v-1); });
       }
     }
 
-    // render table checkboxes in edit form
+    // render table checkboxes
     const editTableChoice = document.getElementById('editTableChoice');
     editTableChoice.innerHTML = "";
     TABLES.forEach(tNo => {
-      const span = document.createElement('span');
-      span.className = 'table-label';
-      const cb = document.createElement('input');
-      cb.type = 'checkbox';
-      cb.className = 'table-checkbox';
-      cb.name = 'editTableNo';
-      cb.value = tNo;
-      cb.id = 'edit-tb-' + tNo;
-      if ((info.tables || []).includes(tNo)) cb.checked = true;
-      const lab = document.createElement('label');
-      lab.htmlFor = 'edit-tb-' + tNo;
-      lab.textContent = tNo;
-      const cap = document.createElement('span');
-      cap.className = 'cap-text';
-      cap.textContent = TABLE_CAPACITY[tNo] + '人';
-      lab.appendChild(cap);
-      span.appendChild(cb);
-      span.appendChild(lab);
-      editTableChoice.appendChild(span);
+      const span = document.createElement('span'); span.className = 'table-label';
+      const cb = document.createElement('input'); cb.type='checkbox'; cb.className='table-checkbox'; cb.name='editTableNo'; cb.value=tNo; cb.id='edit-tb-'+tNo;
+      if ((info.tables||[]).includes(tNo)) cb.checked = true;
+      const lab = document.createElement('label'); lab.htmlFor = 'edit-tb-'+tNo; lab.textContent = tNo;
+      const cap = document.createElement('span'); cap.className='cap-text'; cap.textContent = TABLE_CAPACITY[tNo] + '人';
+      lab.appendChild(cap); span.appendChild(cb); span.appendChild(lab); editTableChoice.appendChild(span);
     });
 
-    // init edit extra counts (populate from info)
+    // init edit extras counts
     document.getElementById('editChildPastaValue').value = info.childPlatePastaCount || 0;
     document.getElementById('editChildPastaDisplay').textContent = String(info.childPlatePastaCount || 0);
     document.getElementById('editChildHamburgerValue').value = info.childPlateHamburgerCount || 0;
     document.getElementById('editChildHamburgerDisplay').textContent = String(info.childPlateHamburgerCount || 0);
     document.getElementById('editBirthdayValue').value = info.birthdayPlateCount || 0;
     document.getElementById('editBirthdayDisplay').textContent = String(info.birthdayPlateCount || 0);
-    const initialFunamori = Number(info.funamoriCount || 0) || (info.funamoriAmount ? Math.round((info.funamoriAmount||0)/10000) : 0);
-    document.getElementById('editFunamoriValue').value = initialFunamori;
-    document.getElementById('editFunamoriDisplay').textContent = String(initialFunamori);
+    document.getElementById('editFunamoriValue').value = info.funamoriCount || 0;
+    document.getElementById('editFunamoriDisplay').textContent = String(info.funamoriCount || 0);
 
-    // attach handlers for edit qty buttons
+    // attach edit qty handlers
     editDiv.querySelectorAll('.edit-qty-btn').forEach(btn => {
       btn.addEventListener('click', () => {
-        const action = btn.dataset.action;
-        const target = btn.dataset.target;
+        const action = btn.dataset.action; const target = btn.dataset.target;
         editHandleCount(action, target);
       });
     });
 
-    // save / cancel handlers
     document.getElementById('cancelEditBtn').onclick = () => renderList(selectedDate);
 
     document.getElementById('saveEditBtn').onclick = async () => {
@@ -1108,40 +945,24 @@ function isDefaultClosed(dateObj) {
       const editTel = document.getElementById("editTel")?.value.trim() || "";
       const editNumA = Number(document.getElementById("editNumA")?.value || 0);
       const editNumC = Number(document.getElementById("editNumC")?.value || 0);
-      const editChildPlate = document.getElementById("editChildPlate") ? document.getElementById("editChildPlate").checked : false;
-      const editBdayPlate = document.getElementById("editBdayPlate") ? document.getElementById("editBdayPlate").checked : false;
-      const editNote = document.getElementById("editNote")?.value.trim() || "";
       const editCourse = (timeKey === 'dinner' && document.getElementById("editCourse")) ? (document.getElementById("editCourse").value || null) : null;
       const editDinnerTime = (timeKey === 'dinner' && document.getElementById("editDinnerTime")) ? (document.getElementById("editDinnerTime").value || null) : null;
       const editDrink = (timeKey === 'dinner' && document.getElementById("editDrinkCount")) ? (parseInt(document.getElementById("editDrinkCount").textContent||'0',10)||0) : 0;
-
       if (isNaN(editNumA) || isNaN(editNumC)) { alert("人数入力必須です"); return; }
-      // 新: 編集時も大人/子どもともに0は不可
-      if (Number(editNumA) === 0 && Number(editNumC) === 0) { alert("大人または子どもどちらか1名以上を指定してください。"); return; }
-
+      if (editNumA === 0 && editNumC === 0) { alert("大人または子どもどちらか1名以上を指定してください。"); return; }
       if (editName && !(/^[ァ-ヴー]+$/.test(editName))) { alert("名前はカタカナのみで入力してください"); return; }
       if (editTel && !(/^[0-9]+$/.test(editTel))) { alert("電話番号は数字のみで入力してください"); return; }
 
-      // collect selected tables
       const tables = [];
       document.querySelectorAll("input[name=editTableNo]:checked").forEach(cb => tables.push(cb.value));
       if (tables.length === 0) { alert("テーブル番号を1つ以上選択してください"); return; }
 
-      // defensive: check closed date if date field present (info.date may exist)
-      if (isDateClosed(info.date)) {
-        alert("編集対象の日付は休業日です。");
-        return;
-      }
+      if (isDateClosed(date)) { alert("編集対象の日付は休業日です。"); return; }
 
-      // capacity check on edit: use requested numbers
-      const totalPeople = (Number(editNumA) || 0) + (Number(editNumC) || 0);
+      const totalPeople = (Number(editNumA)||0) + (Number(editNumC)||0);
       const totalCap = tables.reduce((sum, t) => sum + (Number(TABLE_CAPACITY[t] || 0)), 0);
-      if (totalPeople > totalCap) {
-        alert("選択されたテーブルより予約人数が上回っています。テーブルを追加選択してください。");
-        return;
-      }
+      if (totalPeople > totalCap) { alert("選択されたテーブルより予約人数が上回っています。テーブルを追加選択してください。"); return; }
 
-      // collect extras
       const eChildPasta = Number(document.getElementById('editChildPastaValue')?.value || 0);
       const eChildHamb = Number(document.getElementById('editChildHamburgerValue')?.value || 0);
       const eBday = Number(document.getElementById('editBirthdayValue')?.value || 0);
@@ -1153,9 +974,6 @@ function isDefaultClosed(dateObj) {
           tel: editTel || null,
           numAdult: editNumA,
           numChild: editNumC,
-          childPlate: editChildPlate,
-          bdayPlate: editBdayPlate,
-          note: editNote,
           course: editCourse || null,
           dinnerTime: editDinnerTime || null,
           drinkCount: editDrink || 0,
@@ -1170,7 +988,6 @@ function isDefaultClosed(dateObj) {
         alert('更新に失敗しました: ' + (err.message || err));
         return;
       }
-
       renderList(selectedDate);
     };
 
@@ -1185,87 +1002,40 @@ function isDefaultClosed(dateObj) {
     }
   }
 
-  // ---------- extras handlers ----------
-  const PRICE_CHILD_PLATE = 650;
-  const PRICE_BIRTHDAY_PLATE = 1300;
-
-  function initExtrasHandlers() {
-    document.querySelectorAll('.extras-control .qty-btn').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        const action = btn.dataset.action;
-        const target = btn.dataset.target;
-        if (action && target) handleCount(action, target);
-      });
-    });
+  // ---------------------------
+  // Utilities for edit populate
+  // ---------------------------
+  function populateExtrasFromDoc(docData) {
+    const d = docData || {};
+    if (document.getElementById('childPastaValue')) document.getElementById('childPastaValue').value = d.childPlatePastaCount || 0;
+    if (document.getElementById('childPastaDisplay')) document.getElementById('childPastaDisplay').textContent = String(d.childPlatePastaCount || 0);
+    if (document.getElementById('childHamburgerValue')) document.getElementById('childHamburgerValue').value = d.childPlateHamburgerCount || 0;
+    if (document.getElementById('childHamburgerDisplay')) document.getElementById('childHamburgerDisplay').textContent = String(d.childPlateHamburgerCount || 0);
+    if (document.getElementById('birthdayValue')) document.getElementById('birthdayValue').value = d.birthdayPlateCount || 0;
+    if (document.getElementById('birthdayDisplay')) document.getElementById('birthdayDisplay').textContent = String(d.birthdayPlateCount || 0);
+    const funaCount = Number(d.funamoriCount || 0);
+    if (document.getElementById('funamoriValue')) document.getElementById('funamoriValue').value = funaCount;
+    if (document.getElementById('funamoriDisplay')) document.getElementById('funamoriDisplay').textContent = String(funaCount);
     updateExtrasPreview();
   }
 
-  function handleCount(action, key) {
-    const display = document.getElementById(key + 'Display');
-    const input = document.getElementById(key + 'Value');
-    let v = Number(input.value) || 0;
-    if (action === 'increase') v++;
-    else v = Math.max(0, v - 1);
-    input.value = v;
-    if (display) display.textContent = String(v);
-    updateExtrasPreview();
-  }
-
-  function updateExtrasPreview() {
-    const previewEl = document.getElementById('extrasPricePreview');
-    if (previewEl) previewEl.textContent = '';
-  }
-
-  function getExtrasForSave() {
-    const pasta = Number(document.getElementById('childPastaValue').value) || 0;
-    const hamb = Number(document.getElementById('childHamburgerValue').value) || 0;
-    const bday = Number(document.getElementById('birthdayValue').value) || 0;
-    const funaCount = Number(document.getElementById('funamoriValue').value) || 0;
-    return {
-      childPlatePastaCount: pasta,
-      childPlateHamburgerCount: hamb,
-      birthdayPlateCount: bday,
-      funamoriCount: funaCount,
-      extrasUnitPrices: { childPlateUnit: PRICE_CHILD_PLATE, birthdayPlateUnit: PRICE_BIRTHDAY_PLATE }
-    };
-  }
-
-  // ---------- defensive qty button init (remove delegated handlers and bind per button) ----------
-  function initQtyButtonHandlers() {
-    // remove/replace to clear old listeners (defensive)
-    document.querySelectorAll('.qty-btn').forEach(btn => {
-      const clone = btn.cloneNode(true);
-      btn.parentNode.replaceChild(clone, btn);
-    });
-    // bind handlers
-    document.querySelectorAll('.qty-btn').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        const action = btn.dataset.action;
-        const target = btn.dataset.target;
-        if (action && target && typeof handleCount === 'function') {
-          handleCount(action === 'increase' ? 'increase' : 'decrease', target);
-        }
-      });
-    });
-  }
-
-  // page init: we intentionally avoid duplicate bindings — main init is in onAuthStateChanged
-  // but ensure dinner/time/extras are available if auth not used in some environment
+  // ---------------------------
+  // Page init fallback
+  // ---------------------------
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
-      // minimal safe init (no double-binding of drink handlers since they clone)
       populateDinnerTimeOptions();
       initExtrasHandlers();
       initQtyButtonHandlers();
       initDrinkButtons();
+      loadSelectedDateFromSession();
     });
   } else {
     populateDinnerTimeOptions();
     initExtrasHandlers();
     initQtyButtonHandlers();
     initDrinkButtons();
+    loadSelectedDateFromSession();
   }
 </script>
 </body>
