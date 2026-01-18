@@ -30,6 +30,7 @@
       </label>
       <label>
         大人人数:
+        <!-- 初期値を0に変更 -->
         <input type="number" id="numAdult" required min="0" max="20" value="0">
       </label>
       <label>
@@ -51,7 +52,7 @@
         <fieldset style="border-radius:10px;padding:10px;background:#fff7ea;border:1px solid #efdfc0;">
           <legend style="font-weight:700;color:#6b4423">ディナーコース選択</legend>
 
-          <!-- 時刻プルダウン（17:30 - 20:30、30分刻み） -->
+          <!-- NEW: ディナー時の時刻プルダウン（17:30 - 20:30、30分刻み） -->
           <label style="display:block;margin-bottom:8px;">
             時刻を選択:
             <select id="dinnerTime">
@@ -187,7 +188,7 @@
       populateDinnerTimeOptions();
       initExtrasHandlers();
       initQtyButtonHandlers();
-      initDrinkButtons(); // new
+      initDrinkButtons();
     } else {
       window.location.href = 'login.html';
     }
@@ -391,24 +392,38 @@
 
   // ドリンク（飲み放題） +/- ハンドラ初期化
   function initDrinkButtons() {
+    // defensive: replace nodes to clear prior listeners (avoid double increments)
     const plus = document.getElementById('drinkPlus');
     const minus = document.getElementById('drinkMinus');
     const display = document.getElementById('drinkCount');
-    if (plus) {
-      plus.addEventListener('click', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        const v = parseInt(display.textContent || '0', 10) || 0;
-        display.textContent = String(v + 1);
-      });
-    }
-    if (minus) {
-      minus.addEventListener('click', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        const v = parseInt(display.textContent || '0', 10) || 0;
-        if (v > 0) display.textContent = String(v - 1);
-      });
+    if (!display) return;
+
+    if (plus && minus) {
+      const plusClone = plus.cloneNode(true);
+      plus.parentNode.replaceChild(plusClone, plus);
+      const minusClone = minus.cloneNode(true);
+      minus.parentNode.replaceChild(minusClone, minus);
+
+      // reselect clones
+      const newPlus = document.getElementById('drinkPlus');
+      const newMinus = document.getElementById('drinkMinus');
+
+      if (newPlus) {
+        newPlus.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          const v = parseInt(display.textContent || '0', 10) || 0;
+          display.textContent = String(v + 1);
+        });
+      }
+      if (newMinus) {
+        newMinus.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          const v = parseInt(display.textContent || '0', 10) || 0;
+          if (v > 0) display.textContent = String(v - 1);
+        });
+      }
     }
   }
 
@@ -479,6 +494,13 @@
       alert("日付・時間・人数は必須です");
       return;
     }
+
+    // 新: 大人と子どもどちらも0ならエラー
+    if ((Number(numAdult) === 0) && (Number(numChild) === 0)) {
+      alert("大人または子どもどちらか1名以上を指定してください。");
+      return;
+    }
+
     if (name && !(/^[ァ-ヴー]+$/.test(name))) {
       alert("名前はカタカナのみで入力してください");
       return;
@@ -652,7 +674,7 @@
         const table = document.createElement("table");
         const thead = document.createElement("thead");
 
-        // ヘッダ：ディナーなら「時間」「コース」を含める
+        // ヘッダ：ディナーなら「時間」「コース」を含める（順番指定）
         if (timeKey === 'dinner') {
           thead.innerHTML =
             "<tr>" +
@@ -691,6 +713,7 @@
             if (isFirst) {
               const rowspan = Math.max(1, orderedResTables.length);
 
+              // 大人 / 子ども
               const tdNumA = document.createElement("td");
               tdNumA.className = "num merged-cell";
               tdNumA.textContent = info.numAdult;
@@ -705,21 +728,8 @@
               tdNumC.style.verticalAlign = "middle";
               tr.appendChild(tdNumC);
 
-              const tdName = document.createElement("td");
-              tdName.className = "reserved merged-cell";
-              tdName.textContent = info.name || "";
-              tdName.rowSpan = rowspan;
-              tdName.style.verticalAlign = "middle";
-              tr.appendChild(tdName);
-
-              const tdTel = document.createElement("td");
-              tdTel.className = "phone merged-cell";
-              tdTel.textContent = info.tel || "";
-              tdTel.rowSpan = rowspan;
-              tdTel.style.verticalAlign = "middle";
-              tr.appendChild(tdTel);
-
               if (timeKey === 'dinner') {
+                // 時間
                 const tdTime = document.createElement("td");
                 tdTime.className = "time-cell merged-cell";
                 tdTime.textContent = info.dinnerTime || "";
@@ -728,6 +738,7 @@
                 tdTime.style.textAlign = "center";
                 tr.appendChild(tdTime);
 
+                // コース
                 const tdCourse = document.createElement("td");
                 tdCourse.className = "course-cell merged-cell";
                 tdCourse.textContent = info.course || "";
@@ -735,8 +746,39 @@
                 tdCourse.style.verticalAlign = "middle";
                 tdCourse.style.textAlign = "center";
                 tr.appendChild(tdCourse);
+
+                // 名前・電話は後に追加
+                const tdName = document.createElement("td");
+                tdName.className = "reserved merged-cell";
+                tdName.textContent = info.name || "";
+                tdName.rowSpan = rowspan;
+                tdName.style.verticalAlign = "middle";
+                tr.appendChild(tdName);
+
+                const tdTel = document.createElement("td");
+                tdTel.className = "phone merged-cell";
+                tdTel.textContent = info.tel || "";
+                tdTel.rowSpan = rowspan;
+                tdTel.style.verticalAlign = "middle";
+                tr.appendChild(tdTel);
+              } else {
+                // non-dinner: 名前 / 電話
+                const tdName = document.createElement("td");
+                tdName.className = "reserved merged-cell";
+                tdName.textContent = info.name || "";
+                tdName.rowSpan = rowspan;
+                tdName.style.verticalAlign = "middle";
+                tr.appendChild(tdName);
+
+                const tdTel = document.createElement("td");
+                tdTel.className = "phone merged-cell";
+                tdTel.textContent = info.tel || "";
+                tdTel.rowSpan = rowspan;
+                tdTel.style.verticalAlign = "middle";
+                tr.appendChild(tdTel);
               }
 
+              // 備考（飲み放題を含む）
               const tdNote = document.createElement("td");
               tdNote.className = "note-cell merged-cell";
               let noteStr = [];
@@ -961,19 +1003,29 @@
         });
       }
 
-      // init edit drink +/- handlers
+      // init edit drink +/- handlers (defensive clone -> bind)
       const edPlus = document.getElementById('editDrinkPlus');
       const edMinus = document.getElementById('editDrinkMinus');
       const edDisplay = document.getElementById('editDrinkCount');
-      if (edPlus) edPlus.addEventListener('click', (ev) => {
-        ev.preventDefault(); ev.stopPropagation();
-        edDisplay.textContent = String((parseInt(edDisplay.textContent||'0',10)||0) + 1);
-      });
-      if (edMinus) edMinus.addEventListener('click', (ev) => {
-        ev.preventDefault(); ev.stopPropagation();
-        const v = (parseInt(edDisplay.textContent||'0',10)||0);
-        if (v > 0) edDisplay.textContent = String(v - 1);
-      });
+      if (edPlus && edMinus && edDisplay) {
+        const plusClone = edPlus.cloneNode(true);
+        edPlus.parentNode.replaceChild(plusClone, edPlus);
+        const minusClone = edMinus.cloneNode(true);
+        edMinus.parentNode.replaceChild(minusClone, edMinus);
+
+        const newPlus = document.getElementById('editDrinkPlus');
+        const newMinus = document.getElementById('editDrinkMinus');
+
+        if (newPlus) newPlus.addEventListener('click', (ev) => {
+          ev.preventDefault(); ev.stopPropagation();
+          edDisplay.textContent = String((parseInt(edDisplay.textContent||'0',10)||0) + 1);
+        });
+        if (newMinus) newMinus.addEventListener('click', (ev) => {
+          ev.preventDefault(); ev.stopPropagation();
+          const v = (parseInt(edDisplay.textContent||'0',10)||0);
+          if (v > 0) edDisplay.textContent = String(v - 1);
+        });
+      }
     }
 
     // render table checkboxes in edit form
@@ -1027,8 +1079,8 @@
     document.getElementById('saveEditBtn').onclick = async () => {
       const editName = document.getElementById("editName")?.value.trim() || "";
       const editTel = document.getElementById("editTel")?.value.trim() || "";
-      const editNumA = document.getElementById("editNumA")?.value.trim() || "";
-      const editNumC = document.getElementById("editNumC")?.value.trim() || "";
+      const editNumA = Number(document.getElementById("editNumA")?.value || 0);
+      const editNumC = Number(document.getElementById("editNumC")?.value || 0);
       const editChildPlate = document.getElementById("editChildPlate") ? document.getElementById("editChildPlate").checked : false;
       const editBdayPlate = document.getElementById("editBdayPlate") ? document.getElementById("editBdayPlate").checked : false;
       const editNote = document.getElementById("editNote")?.value.trim() || "";
@@ -1036,7 +1088,10 @@
       const editDinnerTime = (timeKey === 'dinner' && document.getElementById("editDinnerTime")) ? (document.getElementById("editDinnerTime").value || null) : null;
       const editDrink = (timeKey === 'dinner' && document.getElementById("editDrinkCount")) ? (parseInt(document.getElementById("editDrinkCount").textContent||'0',10)||0) : 0;
 
-      if (editNumA === "" || editNumC === "") { alert("人数入力必須です"); return; }
+      if (isNaN(editNumA) || isNaN(editNumC)) { alert("人数入力必須です"); return; }
+      // 新: 編集時も大人/子どもともに0は不可
+      if (Number(editNumA) === 0 && Number(editNumC) === 0) { alert("大人または子どもどちらか1名以上を指定してください。"); return; }
+
       if (editName && !(/^[ァ-ヴー]+$/.test(editName))) { alert("名前はカタカナのみで入力してください"); return; }
       if (editTel && !(/^[0-9]+$/.test(editTel))) { alert("電話番号は数字のみで入力してください"); return; }
 
@@ -1148,20 +1203,6 @@
     };
   }
 
-  function populateExtrasFromDoc(docData) {
-    const d = docData || {};
-    document.getElementById('childPastaValue').value = d.childPlatePastaCount || 0;
-    document.getElementById('childPastaDisplay').textContent = String(d.childPlatePastaCount || 0);
-    document.getElementById('childHamburgerValue').value = d.childPlateHamburgerCount || 0;
-    document.getElementById('childHamburgerDisplay').textContent = String(d.childPlateHamburgerCount || 0);
-    document.getElementById('birthdayValue').value = d.birthdayPlateCount || 0;
-    document.getElementById('birthdayDisplay').textContent = String(d.birthdayPlateCount || 0);
-    const funaCount = Number(d.funamoriCount || 0);
-    document.getElementById('funamoriValue').value = funaCount;
-    document.getElementById('funamoriDisplay').textContent = String(funaCount);
-    updateExtrasPreview();
-  }
-
   // ---------- defensive qty button init (remove delegated handlers and bind per button) ----------
   function initQtyButtonHandlers() {
     // remove/replace to clear old listeners (defensive)
@@ -1183,18 +1224,20 @@
     });
   }
 
-  // page init
+  // page init: we intentionally avoid duplicate bindings — main init is in onAuthStateChanged
+  // but ensure dinner/time/extras are available if auth not used in some environment
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
+      // minimal safe init (no double-binding of drink handlers since they clone)
+      populateDinnerTimeOptions();
       initExtrasHandlers();
       initQtyButtonHandlers();
-      populateDinnerTimeOptions();
       initDrinkButtons();
     });
   } else {
+    populateDinnerTimeOptions();
     initExtrasHandlers();
     initQtyButtonHandlers();
-    populateDinnerTimeOptions();
     initDrinkButtons();
   }
 </script>
