@@ -1448,10 +1448,11 @@ function initDeleteModalHandlers() {
     try {
       // 1) ログとして残す（deletion_logs コレクション） — reservation の snapshot を含める
       const logDoc = {
-        reservationId: _pendingDeleteReservation._id || null,
+        reservationId: _pendingDeleteReservation._id || "",
         reservation: Object.assign({}, _pendingDeleteReservation),
-        deletedBy: staff,
-        reason: reason,
+        deletedBy: staff || "",                           // 表示用のスタッフ名（例："スタッフA"）
+        deletedByUid: firebase.auth().currentUser.uid,   // 重要：現在のログインユーザーの uid を必ずセット
+        reason: reason || null,
         deletedAt: firebase.firestore.FieldValue.serverTimestamp()
       };
       // optional: remove internal properties that are not serializable if any
