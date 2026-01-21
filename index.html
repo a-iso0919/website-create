@@ -1455,8 +1455,7 @@ function initDeleteModalHandlers() {
         reason: reason || null,
         deletedAt: firebase.firestore.FieldValue.serverTimestamp()
       };
-      // optional: remove internal properties that are not serializable if any
-      try { await db.collection('deletion_logs').add(logDoc); } catch (err) { console.warn('log save failed', err); }
+      await db.collection('deletion_logs').add(logDoc);
 
       // 2) 実際の削除
       if (_pendingDeleteReservation._id) {
