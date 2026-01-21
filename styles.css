@@ -67,9 +67,33 @@ input, select, textarea{
 textarea{min-height:32px;max-height:88px;resize:vertical;margin-top:5px}
 
 /* table / choices */
-.table-choice{ display:flex; flex-wrap:wrap; gap:10px 13px; margin:6px 0; align-items:center; }
+.table-choice {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: center;
+  padding: 0; /* 余白が広いなら調整 */
+}
 .table-checkbox{ margin-right:2px; vertical-align:middle; transform:scale(1.04); }
-.table-label{ margin-right:8px; font-size:1em; color:var(--text-dark); }
+.table-label {
+  display: inline-flex;    /* 親を中身サイズにする */
+  align-items: center;
+  gap: 8px;
+  margin: 4px 0;
+  padding: 0;              /* 親に余白を付けない（ラベル側で調整） */
+}
+.table-label > label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;       /* 必要最小限のクリック領域にする */
+  border-radius: 8px;
+  cursor: pointer;
+}
+.table-label input[type="checkbox"] {
+  margin: 0;
+  cursor: pointer;
+}
 .cap-text{
   color:#795312;
   font-size:0.93rem;
