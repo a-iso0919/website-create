@@ -1288,16 +1288,85 @@ function populateExtrasFromDoc(docData) {
 /* ---------- Page init fallback ---------- */
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', () => {
+    // 既存の初期化処理
     populateDinnerTimeOptions();
     initExtrasHandlers();
     initQtyButtonHandlers();
     initDrinkButtons();
+
+    // --- 以下を追加：CSS パッチ注入 + tableChoice の空白クリックガード ---
+    (function injectTableChoiceGuardStyles() {
+      // 既に注入済みなら二重追加を防ぐ
+      if (document.querySelector('style[data-injected="table-choice-guard"]')) return;
+      const css = `
+/* 親コンテナの空白部分はクリックを無効化（子要素のみ反応） */
+#tableChoice, .table-choice {
+  pointer-events: none;
+}
+/* 個々のラベル要素とその中の要素だけクリック可能にする */
+#tableChoice .table-label,
+#tableChoice .table-label * {
+  pointer-events: auto;
+}
+`;
+      const s = document.createElement('style');
+      s.setAttribute('data-injected', 'table-choice-guard');
+      s.appendChild(document.createTextNode(css));
+      document.head.appendChild(s);
+    })();
+
+    (function attachTableChoiceClickGuard() {
+      const tc = document.getElementById('tableChoice');
+      if (!tc) return;
+      // キャプチャ段階で空白クリックは無視する
+      tc.addEventListener('click', function(e) {
+        if (!e.target.closest('.table-label')) {
+          e.preventDefault();
+          e.stopPropagation();
+          return;
+        }
+        // .table-label 内のクリックは通常通り動作させる
+      }, true);
+    })();
+    // --- ここまで追加 ---
   });
 } else {
+  // DOM が既に読み込まれている場合
   populateDinnerTimeOptions();
   initExtrasHandlers();
   initQtyButtonHandlers();
   initDrinkButtons();
+
+  // --- 同じく CSS とガードを追加 ---
+  (function injectTableChoiceGuardStyles() {
+    if (document.querySelector('style[data-injected="table-choice-guard"]')) return;
+    const css = `
+#tableChoice, .table-choice {
+  pointer-events: none;
+}
+#tableChoice .table-label,
+#tableChoice .table-label * {
+  pointer-events: auto;
+}
+`;
+    const s = document.createElement('style');
+    s.setAttribute('data-injected', 'table-choice-guard');
+    s.appendChild(document.createTextNode(css));
+    document.head.appendChild(s);
+  })();
+
+  (function attachTableChoiceClickGuard() {
+    const tc = document.getElementById('tableChoice');
+    if (!tc) return;
+    tc.addEventListener('click', function(e) {
+      if (!e.target.closest('.table-label')) {
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
+    }, true);
+  })();
+  // --- ここまで ---
 }
 </script>
 </body>
