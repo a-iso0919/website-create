@@ -144,6 +144,19 @@
       
         <textarea id="note" placeholder="ご要望など自由記入"></textarea>
       </div>
+      
+      <label style="grid-column: 1/-1;">
+        予約登録担当者:
+        <select id="staffSelect" name="staff">
+          <option value="">（担当者を選択してください）</option>
+          <option value="スタッフA">スタッフA</option>
+          <option value="スタッフB">スタッフB</option>
+          <option value="スタッフC">スタッフC</option>
+          <option value="スタッフD">スタッフD</option>
+          <option value="スタッフE">スタッフE</option>
+          <option value="スタッフF">スタッフF</option>
+        </select>
+      </label>
 
       <button type="submit">予約登録</button>
     </form>
@@ -737,6 +750,7 @@ document.getElementById("resForm").onsubmit = async function(e) {
   const name = document.getElementById("name")?.value.trim() || "";
   const tel = document.getElementById("tel")?.value.trim() || "";
   const note = document.getElementById("note")?.value.trim() || "";
+  const staff = document.getElementById("staffSelect")?.value || null;
 
   const tables = [];
   document.querySelectorAll("input[name=tableNo]:checked").forEach(cb => tables.push(cb.value));
@@ -784,6 +798,7 @@ document.getElementById("resForm").onsubmit = async function(e) {
     const expireAt = computeExpireAtFromDate(date,7);
     await db.collection(RES_COLLECTION).add(Object.assign({
       date, time, numAdult, numChild, tables, name, tel, note,
+      staff: staff || null,                 // ← ここを追加
       course: course || null,
       dinnerTime: dinnerTime || null,
       drinkCount: drinkCount || 0,
@@ -889,12 +904,12 @@ function drawTable(res, selectedDate) {
       if (timeKey === 'dinner') {
         thead.innerHTML =
           "<tr>" +
-            "<th>テーブル</th><th>キャパ</th><th>大人</th><th>子ども</th><th>時間</th><th>コース</th><th>名前</th><th>電話番号</th><th>備考</th><th>操作</th>" +
+            "<th>テーブル</th><th>キャパ</th><th>大人</th><th>子ども</th><th>時間</th><th>コース</th><th>名前</th><th>電話番号</th>><th>備考</th><th>操作</th><th>予約担当者</th" +
           "</tr>";
       } else {
         thead.innerHTML =
           "<tr>" +
-            "<th>テーブル</th><th>キャパ</th><th>大人</th><th>子ども</th><th>名前</th><th>電話番号</th><th>備考</th><th>操作</th>" +
+            "<th>テーブル</th><th>キャパ</th><th>大人</th><th>子ども</th><th>名前</th><th>電話番号</th><th>担当者</th><th>備考</th><th>操作</th>" +
           "</tr>";
       }
 
@@ -983,6 +998,15 @@ function drawTable(res, selectedDate) {
               tr.appendChild(tdTel);
             }
 
+            // create staff cell
+            const tdStaff = document.createElement("td");
+            tdStaff.className = "staff-cell merged-cell";
+            tdStaff.textContent = info.staff || ""; // 表示
+            tdStaff.rowSpan = rowspan;
+            tdStaff.style.verticalAlign = "middle";
+            tdStaff.style.textAlign = "center";
+            tr.appendChild(tdStaff);
+
             const tdNote = document.createElement("td");
             tdNote.className = "note-cell merged-cell";
             let noteStr = [];
@@ -1029,7 +1053,7 @@ function drawTable(res, selectedDate) {
             tr.appendChild(tdAct);
           }
         } else {
-          Array(6 + (timeKey === 'dinner' ? 2 : 0)).fill(0).forEach(() => {
+          Array(7 + (timeKey === 'dinner' ? 2 : 0)).fill(0).forEach(() => {
             const td = document.createElement("td");
             td.className = "empty";
             td.textContent = '';
