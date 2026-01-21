@@ -36,10 +36,10 @@
         子ども人数:
         <input type="number" id="numChild" required min="0" max="20" value="0">
       </label>
-      <label style="grid-column: 1/-1;">
-        テーブル番号（複数選択可）:
-        <div class="table-choice" id="tableChoice"></div>
-      </label>
+      <div style="grid-column: 1/-1;">
+        <label style="display:block;margin-bottom:6px;">テーブル番号（複数選択可）:</label>
+        <div class="table-choice" id="tableChoice" role="group" aria-label="テーブル番号"></div>
+      </div>
       <label style="grid-column: 1/-1;">
         時間帯:
         <div class="time-choices" id="timeChoices" aria-label="時間帯選択"></div>
