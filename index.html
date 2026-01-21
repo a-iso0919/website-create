@@ -147,7 +147,7 @@
       
       <label style="grid-column: 1/-1;">
         予約登録担当者:
-        <select id="staffSelect" name="staff">
+        <select id="staffSelect" name="staff" required aria-required="true">
           <option value="">（担当者を選択してください）</option>
           <option value="昭敬">昭敬</option>
           <option value="典子">典子</option>
@@ -178,7 +178,7 @@
     <div id="deleteModalBackdrop" style="position:fixed;inset:0;background:rgba(0,0,0,0.35);z-index:100000;"></div>
     <div id="deleteModalContent" role="dialog" aria-modal="true" aria-labelledby="deleteModalTitle"
          style="position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);background:#fff;padding:18px;border-radius:10px;z-index:100001;min-width:320px;box-shadow:0 10px 30px rgba(0,0,0,0.25);">
-      <h3 id="deleteModalTitle" style="margin:0 0 10px 0;color:#6b4423;">予約を削除</h3>
+      <h3 id="deleteModalTitle" style="margin:0 0 10px 0;color:#6b4423;">予約を削除する</h3>
       <div id="deleteModalInfo" style="margin-bottom:10px;color:#333;font-size:0.95rem;"></div>
   
       <label style="display:block;margin-bottom:8px;font-weight:600;color:#6b4423;">削除担当者：
@@ -202,7 +202,7 @@
       </label>
   
       <label style="display:block;margin-bottom:12px;color:#6b4423;">理由（任意）：
-        <input id="deleteReasonInput" type="text" placeholder="例：キャンセル受付" style="width:100%;padding:6px 8px;margin-top:6px;border-radius:6px;border:1px solid #ccc;">
+        <input id="deleteReasonInput" type="text" placeholder="例：お電話にてキャンセル受付" style="width:100%;padding:6px 8px;margin-top:6px;border-radius:6px;border:1px solid #ccc;">
       </label>
   
       <div style="display:flex;gap:10px;justify-content:flex-end;">
@@ -812,6 +812,14 @@ document.getElementById("resForm").onsubmit = async function(e) {
   if (tel && !(/^[0-9]+$/.test(tel))) { alert("電話番号は数字のみで入力してください"); return; }
   if (tables.length === 0) { alert("テーブル番号を選択してください"); return; }
   if (time === 'dinner' && !dinnerTime) { alert('ディナーの時刻を選択してください。'); return; }
+
+  // 担当者を必須にする
+  if (!staff) {
+    alert("予約登録担当者を選択してください。");
+    const staffEl = document.getElementById('staffSelect');
+    if (staffEl) try { staffEl.focus(); } catch(e) {}
+    return;
+  }
 
   // final check on closed date at submit time (always enforced)
   if (isDateClosed(date)) {
@@ -1425,6 +1433,14 @@ function initDeleteModalHandlers() {
     if (!_pendingDeleteReservation) { closeModal(); return; }
     const staff = document.getElementById('deleteStaffSelect')?.value || null;
     const reason = document.getElementById('deleteReasonInput')?.value?.trim() || null;
+
+    // 追加：削除担当者を必須にする
+    if (!staff) {
+      alert('削除担当者を選択してください。');
+      const delSel = document.getElementById('deleteStaffSelect');
+      if (delSel) try { delSel.focus(); } catch(e) {}
+      return;
+    }
 
     // 必須にしたい場合は下のチェックを有効化:
     // if (!staff) { alert('削除担当者を選択してください'); return; }
