@@ -863,21 +863,30 @@ function drawTable(res, selectedDate) {
     return;
   }
 
+  // grouped: date -> time -> tableNo -> info
   const grouped = {};
   res.forEach((r, idx) => {
     (r.tables || []).forEach(tableNo => {
       if (!grouped[r.date]) grouped[r.date] = {};
       if (!grouped[r.date][r.time]) grouped[r.date][r.time] = {};
       grouped[r.date][r.time][tableNo] = {
-        numAdult: r.numAdult, numChild: r.numChild, name: r.name, tel: r.tel,
-        note: r.note, course: r.course || null, dinnerTime: r.dinnerTime || null,
+        numAdult: r.numAdult,
+        numChild: r.numChild,
+        name: r.name,
+        tel: r.tel,
+        note: r.note,
+        course: r.course || null,
+        dinnerTime: r.dinnerTime || null,
         drinkCount: r.drinkCount || 0,
         childPlatePastaCount: r.childPlatePastaCount || 0,
         childPlateHamburgerCount: r.childPlateHamburgerCount || 0,
         birthdayPlateCount: r.birthdayPlateCount || 0,
         funamoriCount: r.funamoriCount || 0,
         extrasTotal: r.extrasTotal || 0,
-        _id: r._id, index: idx, tables: r.tables
+        staff: r.staff || null, // <-- include staff here
+        _id: r._id,
+        index: idx,
+        tables: r.tables
       };
     });
   });
@@ -901,10 +910,11 @@ function drawTable(res, selectedDate) {
       const table = document.createElement("table");
       const thead = document.createElement("thead");
 
+      // Header: add "担当者" as the last column
       if (timeKey === 'dinner') {
         thead.innerHTML =
           "<tr>" +
-            "<th>テーブル</th><th>キャパ</th><th>大人</th><th>子ども</th><th>時間</th><th>コース</th><th>名前</th><th>電話番号</th>><th>備考</th><th>操作</th><th>予約担当者</th" +
+            "<th>テーブル</th><th>キャパ</th><th>大人</th><th>子ども</th><th>時間</th><th>コース</th><th>名前</th><th>電話番号</th><th>備考</th><th>操作</th><th>担当者</th>" +
           "</tr>";
       } else {
         thead.innerHTML =
@@ -916,28 +926,37 @@ function drawTable(res, selectedDate) {
       table.appendChild(thead);
       const tbody = document.createElement("tbody");
 
+      // Determine total number of columns for this table type (used for empty rows)
+      const totalCols = (timeKey === 'dinner') ? 11 : 9; // matches thead definitions
+
       TABLES.forEach((tNo, tIndex) => {
         const tr = document.createElement("tr");
+
+        // Table no cell
         const tdNo = document.createElement("td");
         tdNo.className = "table-no";
         tdNo.textContent = tNo;
-        const hasRes = grouped[date] && grouped[date][timeKey] && grouped[date][timeKey][tNo];
-        if (!hasRes) tdNo.classList.add('available');
         tr.appendChild(tdNo);
 
+        // Capacity cell
         const tdCap = document.createElement("td");
         tdCap.className = "cap-cell";
         tdCap.textContent = TABLE_CAPACITY[tNo] + "人";
         tr.appendChild(tdCap);
+
+        const hasRes = grouped[date] && grouped[date][timeKey] && grouped[date][timeKey][tNo];
+        if (!hasRes) tdNo.classList.add('available');
 
         if (hasRes) {
           const info = grouped[date][timeKey][tNo];
           const reservationTables = (info.tables || []).filter(x => TABLES.includes(x));
           const orderedResTables = TABLES.filter(t => reservationTables.includes(t));
           const isFirst = orderedResTables.length > 0 && orderedResTables[0] === tNo;
+
           if (isFirst) {
             const rowspan = Math.max(1, orderedResTables.length);
 
+            // 大人人数
             const tdNumA = document.createElement("td");
             tdNumA.className = "num merged-cell";
             tdNumA.textContent = info.numAdult;
@@ -945,6 +964,7 @@ function drawTable(res, selectedDate) {
             tdNumA.style.verticalAlign = "middle";
             tr.appendChild(tdNumA);
 
+            // 子ども人数
             const tdNumC = document.createElement("td");
             tdNumC.className = "childnum merged-cell";
             tdNumC.textContent = info.numChild;
@@ -953,6 +973,7 @@ function drawTable(res, selectedDate) {
             tr.appendChild(tdNumC);
 
             if (timeKey === 'dinner') {
+              // 時間（ディナー時）
               const tdTime = document.createElement("td");
               tdTime.className = "time-cell merged-cell";
               tdTime.textContent = info.dinnerTime || "";
@@ -961,6 +982,7 @@ function drawTable(res, selectedDate) {
               tdTime.style.textAlign = "center";
               tr.appendChild(tdTime);
 
+              // コース
               const tdCourse = document.createElement("td");
               tdCourse.className = "course-cell merged-cell";
               tdCourse.textContent = info.course || "";
@@ -969,6 +991,7 @@ function drawTable(res, selectedDate) {
               tdCourse.style.textAlign = "center";
               tr.appendChild(tdCourse);
 
+              // 名前
               const tdName = document.createElement("td");
               tdName.className = "reserved merged-cell";
               tdName.textContent = info.name || "";
@@ -976,6 +999,7 @@ function drawTable(res, selectedDate) {
               tdName.style.verticalAlign = "middle";
               tr.appendChild(tdName);
 
+              // 電話
               const tdTel = document.createElement("td");
               tdTel.className = "phone merged-cell";
               tdTel.textContent = info.tel || "";
@@ -983,6 +1007,7 @@ function drawTable(res, selectedDate) {
               tdTel.style.verticalAlign = "middle";
               tr.appendChild(tdTel);
             } else {
+              // 非ディナー：名前
               const tdName = document.createElement("td");
               tdName.className = "reserved merged-cell";
               tdName.textContent = info.name || "";
@@ -990,6 +1015,7 @@ function drawTable(res, selectedDate) {
               tdName.style.verticalAlign = "middle";
               tr.appendChild(tdName);
 
+              // 非ディナー：電話
               const tdTel = document.createElement("td");
               tdTel.className = "phone merged-cell";
               tdTel.textContent = info.tel || "";
@@ -998,15 +1024,7 @@ function drawTable(res, selectedDate) {
               tr.appendChild(tdTel);
             }
 
-            // create staff cell
-            const tdStaff = document.createElement("td");
-            tdStaff.className = "staff-cell merged-cell";
-            tdStaff.textContent = info.staff || ""; // 表示
-            tdStaff.rowSpan = rowspan;
-            tdStaff.style.verticalAlign = "middle";
-            tdStaff.style.textAlign = "center";
-            tr.appendChild(tdStaff);
-
+            // 備考（note）セル（先に備考を追加する）
             const tdNote = document.createElement("td");
             tdNote.className = "note-cell merged-cell";
             let noteStr = [];
@@ -1022,6 +1040,7 @@ function drawTable(res, selectedDate) {
             tdNote.style.textAlign = "center";
             tr.appendChild(tdNote);
 
+            // 操作セル（削除／変更）
             const tdAct = document.createElement("td");
             tdAct.className = "action-cell merged-cell";
             tdAct.rowSpan = rowspan;
@@ -1051,14 +1070,25 @@ function drawTable(res, selectedDate) {
             tdAct.appendChild(removeBtn);
             tdAct.appendChild(editBtn);
             tr.appendChild(tdAct);
+
+            // 担当者セル（右端）
+            const tdStaff = document.createElement("td");
+            tdStaff.className = "staff-cell merged-cell";
+            tdStaff.textContent = info.staff || "";
+            tdStaff.rowSpan = rowspan;
+            tdStaff.style.verticalAlign = "middle";
+            tdStaff.style.textAlign = "center";
+            tr.appendChild(tdStaff);
           }
         } else {
-          Array(7 + (timeKey === 'dinner' ? 2 : 0)).fill(0).forEach(() => {
+          // 空セルを、既に追加した tableNo/tCap の後に残りを埋める
+          const remaining = totalCols - 2; // we've already appended 2 cells
+          for (let i = 0; i < remaining; i++) {
             const td = document.createElement("td");
             td.className = "empty";
             td.textContent = '';
             tr.appendChild(td);
-          });
+          }
         }
 
         const nextTable = TABLES[tIndex + 1];
