@@ -88,7 +88,7 @@
 
       <label>
         名前（カタカナのみ）:
-        <input type="text" id="name" pattern="^[ァ-ヴー]+$" placeholder="例：カトウ">
+        <input type="text" id="name" pattern="^[ァ-ヴー]+$" placeholder="例：スズキ">
       </label>
       <label>
         電話番号:
@@ -149,12 +149,20 @@
         予約登録担当者:
         <select id="staffSelect" name="staff">
           <option value="">（担当者を選択してください）</option>
-          <option value="スタッフA">スタッフA</option>
-          <option value="スタッフB">スタッフB</option>
-          <option value="スタッフC">スタッフC</option>
-          <option value="スタッフD">スタッフD</option>
-          <option value="スタッフE">スタッフE</option>
-          <option value="スタッフF">スタッフF</option>
+          <option value="スタッフA">昭敬</option>
+          <option value="スタッフB">典子</option>
+          <option value="スタッフC">美香</option>
+          <option value="スタッフD">亮太</option>
+          <option value="スタッフE">山本</option>
+          <option value="スタッフF">山田</option>
+          <option value="スタッフG">加藤</option>
+          <option value="スタッフH">弓倉</option>
+          <option value="スタッフi">島田</option>
+          <option value="スタッフJ">小川（七）</option>
+          <option value="スタッフK">小川（大）</option>
+          <option value="スタッフL">木寺</option>
+          <option value="スタッフM">河村</option>
+          <option value="スタッフN">田之脇</option>
         </select>
       </label>
 
@@ -163,6 +171,45 @@
 
     <h2>予約一覧</h2>
     <div class="scroll-table"><section id="listArea"></section></div>
+  </div>
+
+  <!-- 追加：削除確認モーダル -->
+  <div id="deleteModal" aria-hidden="true" style="display:none;">
+    <div id="deleteModalBackdrop" style="position:fixed;inset:0;background:rgba(0,0,0,0.35);z-index:100000;"></div>
+    <div id="deleteModalContent" role="dialog" aria-modal="true" aria-labelledby="deleteModalTitle"
+         style="position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);background:#fff;padding:18px;border-radius:10px;z-index:100001;min-width:320px;box-shadow:0 10px 30px rgba(0,0,0,0.25);">
+      <h3 id="deleteModalTitle" style="margin:0 0 10px 0;color:#6b4423;">予約を削除</h3>
+      <div id="deleteModalInfo" style="margin-bottom:10px;color:#333;font-size:0.95rem;"></div>
+  
+      <label style="display:block;margin-bottom:8px;font-weight:600;color:#6b4423;">削除担当者：
+        <select id="deleteStaffSelect" style="margin-top:6px;padding:6px 8px;border-radius:6px;border:1px solid #ccc;width:100%;">
+          <option value="">（担当者を選択）</option>
+          <option value="スタッフA">昭敬</option>
+          <option value="スタッフB">典子</option>
+          <option value="スタッフC">美香</option>
+          <option value="スタッフD">亮太</option>
+          <option value="スタッフE">山本</option>
+          <option value="スタッフF">山田</option>
+          <option value="スタッフG">加藤</option>
+          <option value="スタッフH">弓倉</option>
+          <option value="スタッフi">島田</option>
+          <option value="スタッフJ">小川（七）</option>
+          <option value="スタッフK">小川（大）</option>
+          <option value="スタッフL">木寺</option>
+          <option value="スタッフM">河村</option>
+          <option value="スタッフN">田之脇</option>
+        </select>
+      </label>
+  
+      <label style="display:block;margin-bottom:12px;color:#6b4423;">理由（任意）：
+        <input id="deleteReasonInput" type="text" placeholder="例：キャンセル受付" style="width:100%;padding:6px 8px;margin-top:6px;border-radius:6px;border:1px solid #ccc;">
+      </label>
+  
+      <div style="display:flex;gap:10px;justify-content:flex-end;">
+        <button id="cancelDeleteBtn" class="act-btn" style="background:linear-gradient(90deg,#c4c4c4,#e0e0e0);color:#333;padding:8px 12px;border-radius:8px;">キャンセル</button>
+        <button id="confirmDeleteBtn" class="act-btn" style="background:linear-gradient(90deg,#e69527,#c38b2a);color:#fff;padding:8px 12px;border-radius:8px;">削除する</button>
+      </div>
+    </div>
   </div>
 
 <script>
@@ -1050,13 +1097,16 @@ function drawTable(res, selectedDate) {
             const removeBtn = document.createElement("button");
             removeBtn.className = "act-btn";
             removeBtn.textContent = "削除";
-            removeBtn.onclick = async () => {
-              if (confirm("本当に削除してもよいですか？")) {
-                try {
-                  await db.collection(RES_COLLECTION).doc(info._id).delete();
-                } catch (err) {
-                  console.error('Delete failed', err);
-                  alert('削除に失敗しました: ' + (err.message || err));
+            removeBtn.onclick = (ev) => {
+              ev.preventDefault();
+              ev.stopPropagation();
+              try {
+                // info を渡してモーダルを開く（内部でログ保存→削除を行う）
+                showDeleteModalForReservation(info);
+              } catch (e) {
+                // フォールバックで従来の confirm を使う
+                if (confirm("本当に削除してもよいですか？")) {
+                  db.collection(RES_COLLECTION).doc(info._id).delete().catch(err => { console.error(err); alert('削除に失敗しました'); });
                 }
               }
             };
@@ -1340,6 +1390,103 @@ function populateExtrasFromDoc(docData) {
   if (document.getElementById('funamoriDisplay')) document.getElementById('funamoriDisplay').textContent = String(funaCount);
   updateExtrasPreview();
 }
+/* ---------- 削除モーダルロジックと削除処理（ログを作成してから削除） ---------- */
+let _pendingDeleteReservation = null;
+
+function initDeleteModalHandlers() {
+  const modal = document.getElementById('deleteModal');
+  const backdrop = document.getElementById('deleteModalBackdrop');
+  const cancelBtn = document.getElementById('cancelDeleteBtn');
+  const confirmBtn = document.getElementById('confirmDeleteBtn');
+
+  function closeModal() {
+    if (!modal) return;
+    modal.setAttribute('aria-hidden', 'true');
+    modal.style.display = 'none';
+    _pendingDeleteReservation = null;
+  }
+
+  function openModal() {
+    if (!modal) return;
+    modal.setAttribute('aria-hidden', 'false');
+    modal.style.display = 'block';
+    // フォーカスをスタッフ選択に移す
+    const s = document.getElementById('deleteStaffSelect');
+    if (s) s.focus();
+  }
+
+  cancelBtn && cancelBtn.addEventListener('click', (e) => { e.preventDefault(); closeModal(); });
+  backdrop && backdrop.addEventListener('click', (e) => { e.preventDefault(); closeModal(); });
+
+  confirmBtn && confirmBtn.addEventListener('click', async (e) => {
+    e.preventDefault();
+    if (!_pendingDeleteReservation) { closeModal(); return; }
+    const staff = document.getElementById('deleteStaffSelect')?.value || null;
+    const reason = document.getElementById('deleteReasonInput')?.value?.trim() || null;
+
+    // 必須にしたい場合は下のチェックを有効化:
+    // if (!staff) { alert('削除担当者を選択してください'); return; }
+
+    try {
+      // 1) ログとして残す（deletion_logs コレクション） — reservation の snapshot を含める
+      const logDoc = {
+        reservationId: _pendingDeleteReservation._id || null,
+        reservation: Object.assign({}, _pendingDeleteReservation),
+        deletedBy: staff,
+        reason: reason,
+        deletedAt: firebase.firestore.FieldValue.serverTimestamp()
+      };
+      // optional: remove internal properties that are not serializable if any
+      try { await db.collection('deletion_logs').add(logDoc); } catch (err) { console.warn('log save failed', err); }
+
+      // 2) 実際の削除
+      if (_pendingDeleteReservation._id) {
+        try {
+          await db.collection(RES_COLLECTION).doc(_pendingDeleteReservation._id).delete();
+        } catch (err) {
+          console.error('Delete failed', err);
+          alert('削除に失敗しました: ' + (err.message || err));
+          closeModal();
+          return;
+        }
+      }
+
+      // optional: show brief toast
+      try { showDateError('予約を削除しました（担当者: ' + (staff||'未指定') + '）', null, { persistent:false }); } catch(e){}
+
+    } finally {
+      closeModal();
+    }
+  });
+}
+
+// 呼び出し用：drawTable の remove ボタンから呼ぶ
+function showDeleteModalForReservation(info) {
+  _pendingDeleteReservation = info;
+  const infoEl = document.getElementById('deleteModalInfo');
+  if (infoEl) {
+    infoEl.textContent = `テーブル: ${ (info.tables && info.tables.join(', ')) || '' } ／ 名前: ${ info.name || '' } ／ 日付: ${ info.date || '' } ／ 時間: ${ info.time || '' }`;
+  }
+  // 初期値としてフォーム上の staffSelect の選択を引き継ぐ（あれば）
+  const mainStaff = document.getElementById('staffSelect')?.value || '';
+  const delStaffSel = document.getElementById('deleteStaffSelect');
+  if (delStaffSel) delStaffSel.value = mainStaff || '';
+  // clear reason
+  const reasonInput = document.getElementById('deleteReasonInput');
+  if (reasonInput) reasonInput.value = '';
+  // open modal
+  const modal = document.getElementById('deleteModal');
+  if (modal) {
+    modal.setAttribute('aria-hidden','false');
+    modal.style.display = 'block';
+    const s = document.getElementById('deleteStaffSelect'); if (s) s.focus();
+  }
+}
+
+// 初期化をページロード時に一回だけ呼ぶ（既存の init 処理場所に追加）
+document.addEventListener('DOMContentLoaded', () => {
+  try { initDeleteModalHandlers(); } catch(e) {}
+});
 
 /* ---------- Page init fallback ---------- */
 if (document.readyState === 'loading') {
