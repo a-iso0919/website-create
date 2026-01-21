@@ -917,6 +917,8 @@ function drawTable(res, selectedDate) {
       if (!grouped[r.date]) grouped[r.date] = {};
       if (!grouped[r.date][r.time]) grouped[r.date][r.time] = {};
       grouped[r.date][r.time][tableNo] = {
+        date: r.date,
+        time: r.time,
         numAdult: r.numAdult,
         numChild: r.numChild,
         name: r.name,
@@ -930,7 +932,7 @@ function drawTable(res, selectedDate) {
         birthdayPlateCount: r.birthdayPlateCount || 0,
         funamoriCount: r.funamoriCount || 0,
         extrasTotal: r.extrasTotal || 0,
-        staff: r.staff || null, // <-- include staff here
+        staff: r.staff || null,
         _id: r._id,
         index: idx,
         tables: r.tables
