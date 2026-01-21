@@ -293,3 +293,4 @@ td.table-no.available {
   outline: 2px solid rgba(107,68,35,0.6);
   box-shadow: none;
 }
+td.staff-cell { color:#6b4423; font-weight:600; }
