@@ -227,38 +227,61 @@
     return resMap;
   }
 
-  // build month grid (weeks)
-  function buildMonthGrid(year, month, resSummary) {
-    const first = new Date(year, month, 1);
-    const last = new Date(year, month + 1, 0);
-    const grid = [];
-    const startDate = new Date(first);
-    startDate.setDate(first.getDate() - first.getDay());
-    const endDate = new Date(last);
-    endDate.setDate(last.getDate() + (6 - last.getDay()));
+  // 置換用：buildMonthGrid (ランチ判定を 11:00 / 13:00 個別で評価し、金土は左右表示)
+function buildMonthGrid(year, month, resSummary) {
+  const first = new Date(year, month, 1);
+  const last = new Date(year, month + 1, 0);
+  const grid = [];
+  // 開始は 1日のある週の Sunday
+  const startDate = new Date(first);
+  startDate.setDate(first.getDate() - first.getDay());
+  // 終了は 最後日のある週の Saturday
+  const endDate = new Date(last);
+  endDate.setDate(last.getDate() + (6 - last.getDay()));
 
-    let cur = new Date(startDate);
-    while (cur <= endDate) {
-      const week = [];
-      for (let i = 0; i < 7; i++) {
-        const cellDate = new Date(cur);
-        const ymd = ymdString(cellDate);
-        let isClosed = _closedDatesSet_forCalendar.has(ymd) || isDefaultClosed(cellDate);
-        const lunchReserved = ((resSummary[ymd] && ( (resSummary[ymd]['11:00']||0) + (resSummary[ymd]['13:00']||0) )) || 0);
-        const dinnerReserved = ((resSummary[ymd] && (resSummary[ymd]['dinner']||0)) || 0);
-        const lunchFull = lunchReserved >= TOTAL_SEATS;
-        const dinnerFull = dinnerReserved >= TOTAL_SEATS;
-        week.push({
-          date: new Date(cellDate),
-          ymd, isCurrentMonth: cellDate.getMonth() === month,
-          isClosed, lunchFull, dinnerFull
-        });
-        cur.setDate(cur.getDate() + 1);
-      }
-      grid.push(week);
+  let cur = new Date(startDate);
+  while (cur <= endDate) {
+    const week = [];
+    for (let i = 0; i < 7; i++) {
+      const cellDate = new Date(cur);
+      const ymd = ymdString(cellDate);
+      const isClosed = _closedDatesSet_forCalendar.has(ymd) || isDefaultClosed(cellDate);
+
+      // 予約集計（存在しない場合は 0） — 11:00 / 13:00 / dinner を個別に扱う
+      const daySummary = (resSummary && resSummary[ymd]) ? resSummary[ymd] : {};
+      const reserved11 = Number(daySummary['11:00'] || 0);
+      const reserved13 = Number(daySummary['13:00'] || 0);
+      const reservedDinner = Number(daySummary['dinner'] || 0);
+
+      // ランチは「11:00 と 13:00 が両方満席のときだけ満とする」
+      // （片方でも空きがあれば '空' を表示するという要件）
+      const lunchFull = (reserved11 >= TOTAL_SEATS) && (reserved13 >= TOTAL_SEATS);
+
+      // ディナーは単独判定
+      const dinnerFull = (reservedDinner >= TOTAL_SEATS);
+
+      // 便利のためにツールチップに詳細を入れておく（デバッグ/確認用）
+      const tooltip = `11:00: ${reserved11} / 13:00: ${reserved13} / dinner: ${reservedDinner}`;
+
+      week.push({
+        date: new Date(cellDate),
+        ymd,
+        isCurrentMonth: cellDate.getMonth() === month,
+        isClosed,
+        lunchFull,
+        dinnerFull,
+        reserved11,
+        reserved13,
+        reservedDinner,
+        tooltip
+      });
+
+      cur.setDate(cur.getDate() + 1);
     }
-    return { grid, first, last };
+    grid.push(week);
   }
+  return { grid, first, last };
+}
 
   function renderCalendarPreviewInto(containerEl, year, month, resSummary) {
     const mb = document.createElement('div'); mb.className = 'month-box';
