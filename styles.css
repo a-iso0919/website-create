@@ -459,4 +459,34 @@ td.staff-cell { color:#6b4423; font-weight:600; }
 /* 更に視覚調整：バッジのテキストがはみ出す場合に省略する（必要なら） */
 #calendarPreview .status .badge { text-overflow: ellipsis; overflow: hidden; }
 
+/* === カレンダー：常に縦並びにする上書き（末尾に追加） === */
+/* calendarPreview 内の month を縦に積む（PC / iPad 横 でも縦表示） */
+#calendarPreview {
+  display: flex !important;
+  flex-direction: column !important; /* ← ここで縦積みに固定 */
+  gap: 18px !important;
+  align-items: stretch !important;
+  justify-content: center !important;
+}
+
+/* month-box は幅いっぱいに広げる（横並びにならないように） */
+#calendarPreview .month-box {
+  flex: 0 1 100% !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+}
+
+/* days-grid は内部で7列のグリッドを維持 */
+#calendarPreview .days-grid {
+  display: grid !important;
+  grid-template-columns: repeat(7, 1fr) !important;
+  gap: 8px !important;
+}
+
+/* 微調整：広画面で余白が大きすぎるときの見た目調整 */
+@media (min-width: 1400px) {
+  #calendarPreview { max-width: 920px; margin-left: auto; margin-right: auto; }
+}
+
 /* ===== end responsive calendar tweaks ===== */
