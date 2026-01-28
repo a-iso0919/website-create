@@ -295,89 +295,117 @@ td.table-no.available {
 }
 td.staff-cell { color:#6b4423; font-weight:600; }
 
-/* カレンダープレビュー全体 */
-    .calendar-preview {
-      display:flex;
-      gap:18px;
-      flex-wrap:wrap;
-      align-items:flex-start;
-      margin-top:12px;
-      justify-content:flex-start;
-    }
+/* ===== カレンダープレビュー（上書き用：このブロックで既存のカレンダー CSS を置き換えてください） ===== */
 
-    /* 月ボックス（幅を十分に取り、レスポンシブに） */
-    .month-box {
-      background:#fffaf0;
-      border:1px solid #ebd8b0;
-      border-radius:10px;
-      padding:10px;
-      width: min(100%, 640px);
-      max-width: 640px;
-      box-shadow:0 3px 10px rgba(0,0,0,0.04);
-      box-sizing: border-box;
-    }
+/* コンテナ内のカレンダー全体 */
+#calendarPreview.calendar-preview {
+  display: flex;
+  gap: 18px;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-top: 12px;
+}
 
-    .month-title { text-align:center; font-weight:700; color:#6b4423; margin-bottom:8px; }
+/* 月ボックス：幅は 2カラム（余白を差し引いて半分） — 横幅に余裕があれば横並びになります */
+#calendarPreview .month-box {
+  background: #fffaf0;
+  border: 1px solid #ebd8b0;
+  border-radius: 10px;
+  padding: 10px;
+  box-shadow: 0 3px 10px rgba(0,0,0,0.04);
+  box-sizing: border-box;
 
-    /* 曜日ヘッダ — 横並びの7カラムグリッドを強制 */
-    .weekdays {
-      display:grid !important;
-      grid-template-columns:repeat(7,1fr);
-      gap:4px;
-      color:#8a6b44;
-      font-weight:600;
-      text-align:center;
-      font-size:.9rem;
-      margin-bottom:6px;
-      align-items:center;
-    }
+  /* 2カラム表示を基本にする */
+  width: calc(50% - 9px);   /* gap を考慮して半分に調整 */
+  max-width: 560px;        /* 必要なら調整 */
+  min-width: 280px;        /* 極端に狭くならないようにする */
+}
 
-    /* 日付グリッド：7カラム */
-    .days-grid {
-      display:grid !important;
-      grid-template-columns:repeat(7,1fr);
-      gap:6px;
-    }
+/* 月タイトル */
+#calendarPreview .month-title {
+  text-align: center;
+  font-weight: 700;
+  color: #6b4423;
+  margin-bottom: 8px;
+}
 
-    /* 日セル */
-    .day-cell {
-      min-height:72px;
-      padding:8px;
-      background:#fffef7;
-      border-radius:8px;
-      border:1px dashed #f0e6d0;
-      box-sizing:border-box;
-      position:relative;
-      font-size:0.92rem;
-      color:#4b3a2a;
+/* 曜日ヘッダ：強制的に7列グリッドにする（他のスタイルの上書き対策で #calendarPreview を付与）*/
+#calendarPreview .weekdays {
+  display: grid !important;
+  grid-template-columns: repeat(7, 1fr) !important;
+  gap: 4px;
+  color: #8a6b44;
+  font-weight: 600;
+  text-align: center;
+  font-size: .9rem;
+  margin-bottom: 6px;
+  align-items: center;
+}
 
-      /* レイアウト内部を縦方向で揃える */
-      display:flex;
-      flex-direction:column;
-      justify-content:flex-start;
-    }
-    .day-cell.inactive { opacity:0.45; background:#fbf7ee; }
-    .day-num { font-weight:700; color:#6b4423; margin-bottom:6px; }
+/* 日付グリッド：7列 */
+#calendarPreview .days-grid {
+  display: grid !important;
+  grid-template-columns: repeat(7, 1fr) !important;
+  gap: 8px;
+}
 
-    .status { margin-top:auto; display:flex; gap:6px; justify-content:center; align-items:center; font-size:0.9rem; width:100%; }
+/* 日セル：縦に整列する（日付は上、ステータスは下に）*/
+#calendarPreview .day-cell {
+  min-height: 72px;
+  padding: 8px;
+  background: #fffef7;
+  border-radius: 8px;
+  border: 1px dashed #f0e6d0;
+  box-sizing: border-box;
+  position: relative;
+  font-size: 0.92rem;
+  color: #4b3a2a;
 
-    .status .badge { padding:4px 8px; border-radius:6px; font-weight:700; color:#fff; white-space:nowrap; }
-    .badge-closed { background:#b56b3c; }     /* 休 */
-    .badge-available { background:#6b9a5a; }  /* 空 */
-    .badge-full { background:#c04a4a; }       /* 満 */
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+}
 
-    /* 金土（二分割表示） */
-    .day-status-split { display:flex; gap:6px; width:100%; justify-content:space-between; }
-    .split-left, .split-right { flex:1; text-align:center; padding:6px 4px; border-radius:6px; color:#fff; font-weight:700; font-size:0.92rem; }
-    .split-left { margin-right:4px; }
-    .split-right { margin-left:4px; }
-    .split-left.empty { background:#6b9a5a; }
-    .split-right.empty { background:#6b9a5a; }
-    .split-left.full { background:#c04a4a; }
-    .split-right.full { background:#c04a4a; }
+/* 当月外の日は淡色表示 */
+#calendarPreview .day-cell.inactive { opacity: 0.45; background: #fbf7ee; }
 
-    /* レスポンシブ：狭い画面では月を縦に並べる */
-    @media (max-width: 800px) {
+/* 日番号 */
+#calendarPreview .day-num { font-weight:700; color:#6b4423; margin-bottom:6px; }
+
+/* ステータス領域はセルの下部に寄せる */
+#calendarPreview .status {
+  margin-top: auto;
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+  align-items: center;
+  font-size: 0.9rem;
+  width: 100%;
+}
+
+/* バッジ */
+#calendarPreview .status .badge { padding: 4px 8px; border-radius: 6px; font-weight:700; color:#fff; white-space:nowrap; }
+#calendarPreview .badge-closed { background:#b56b3c; }     /* 休 */
+#calendarPreview .badge-available { background:#6b9a5a; }  /* 空 */
+#calendarPreview .badge-full { background:#c04a4a; }       /* 満 */
+
+/* 金・土 の二分割状態 */
+#calendarPreview .day-status-split { display:flex; gap:6px; width:100%; justify-content:space-between; }
+#calendarPreview .split-left, #calendarPreview .split-right { flex:1; text-align:center; padding:6px 4px; border-radius:6px; color:#fff; font-weight:700; font-size:0.92rem; }
+#calendarPreview .split-left { margin-right:4px; }
+#calendarPreview .split-right { margin-left:4px; }
+#calendarPreview .split-left.empty, #calendarPreview .split-right.empty { background:#6b9a5a; }
+#calendarPreview .split-left.full,  #calendarPreview .split-right.full  { background:#c04a4a; }
+
+/* レスポンシブ：画面が狭ければ縦並びにする */
+@media (max-width: 920px) {
+  #calendarPreview .month-box { width: 100%; max-width: 100%; }
+  #calendarPreview { justify-content: center; }
+  #calendarPreview .days-grid { gap: 6px; }
+}
+
+/* ===== end calendar preview override ===== */
       .month-box { width: 100%; }
       .calendar-preview { gap:12px; }
       .day-cell { min-height:64px; padding:6px; }
