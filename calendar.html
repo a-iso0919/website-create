@@ -424,6 +424,7 @@
         if (!grouped[t]) grouped[t] = [];
         grouped[t].push(r);
       });
+
       // utility: time label e.g. '11:00' -> '11時〜'
       function timeLabel(tk) {
         if (tk === '11:00') return '11時〜';
@@ -431,9 +432,17 @@
         if (tk === 'dinner' || tk === 'ディナー') return 'ディナー';
         return tk;
       }
+
       // Render
       for (const timeKey of Object.keys(grouped).sort()) {
-        // top row with compact label at left
+        // compute reserved seats for this timeKey to decide color (full vs available)
+        const seatsReserved = grouped[timeKey].reduce((sum, r) => {
+          const t = Array.isArray(r.tables) ? r.tables : [];
+          return sum + t.reduce((ss, tn) => ss + (TABLE_CAPACITY[tn] || 0), 0);
+        }, 0);
+        const isFull = seatsReserved >= TOTAL_SEATS;
+
+        // top row with compact colored label at left
         const headerRow = document.createElement('div');
         headerRow.style.display = 'flex';
         headerRow.style.alignItems = 'center';
@@ -443,20 +452,21 @@
 
         const lbl = document.createElement('span');
         lbl.textContent = timeLabel(timeKey);
-        // simple badge styling consistent with calendar badges
+        // badge-like frame but color indicates availability:
         lbl.style.display = 'inline-block';
         lbl.style.padding = '6px 10px';
         lbl.style.borderRadius = '8px';
         lbl.style.fontWeight = '700';
-        lbl.style.color = '#fff';
         lbl.style.fontSize = '0.95rem';
-        // color: dinner same logic as elsewhere
-        if (timeKey === 'dinner') {
-          lbl.style.background = '#6b9a5a';
+        // use border-frame style as requested: green border when available, red when full
+        if (isFull) {
+          lbl.style.background = 'transparent';
+          lbl.style.color = '#c04a4a';
+          lbl.style.border = '2px solid #c04a4a';
         } else {
-          // for lunch times show green unless fully reserved (we can inspect grouped[timeKey] seats if needed)
-          // keep green by default
-          lbl.style.background = '#6b9a5a';
+          lbl.style.background = 'transparent';
+          lbl.style.color = '#2f7b46';
+          lbl.style.border = '2px solid #6b9a5a';
         }
 
         const hdrTitle = document.createElement('div');
