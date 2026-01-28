@@ -424,14 +424,47 @@
         if (!grouped[t]) grouped[t] = [];
         grouped[t].push(r);
       });
+      // utility: time label e.g. '11:00' -> '11時〜'
+      function timeLabel(tk) {
+        if (tk === '11:00') return '11時〜';
+        if (tk === '13:00') return '13時〜';
+        if (tk === 'dinner' || tk === 'ディナー') return 'ディナー';
+        return tk;
+      }
       // Render
       for (const timeKey of Object.keys(grouped).sort()) {
-        const hdr = document.createElement('div');
-        hdr.style.fontWeight = '700';
-        hdr.style.marginTop = '8px';
-        hdr.style.marginBottom = '6px';
-        hdr.textContent = `時間: ${timeKey}`;
-        listEl.appendChild(hdr);
+        // top row with compact label at left
+        const headerRow = document.createElement('div');
+        headerRow.style.display = 'flex';
+        headerRow.style.alignItems = 'center';
+        headerRow.style.gap = '10px';
+        headerRow.style.marginTop = '8px';
+        headerRow.style.marginBottom = '6px';
+
+        const lbl = document.createElement('span');
+        lbl.textContent = timeLabel(timeKey);
+        // simple badge styling consistent with calendar badges
+        lbl.style.display = 'inline-block';
+        lbl.style.padding = '6px 10px';
+        lbl.style.borderRadius = '8px';
+        lbl.style.fontWeight = '700';
+        lbl.style.color = '#fff';
+        lbl.style.fontSize = '0.95rem';
+        // color: dinner same logic as elsewhere
+        if (timeKey === 'dinner') {
+          lbl.style.background = '#6b9a5a';
+        } else {
+          // for lunch times show green unless fully reserved (we can inspect grouped[timeKey] seats if needed)
+          // keep green by default
+          lbl.style.background = '#6b9a5a';
+        }
+
+        const hdrTitle = document.createElement('div');
+        hdrTitle.style.fontWeight = '700';
+        hdrTitle.textContent = `時間: ${timeKey}`;
+        headerRow.appendChild(lbl);
+        headerRow.appendChild(hdrTitle);
+        listEl.appendChild(headerRow);
 
         const tbl = document.createElement('table');
         tbl.style.width = '100%';
