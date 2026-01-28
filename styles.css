@@ -295,19 +295,18 @@ td.table-no.available {
 }
 td.staff-cell { color:#6b4423; font-weight:600; }
 
-/* ===== カレンダープレビュー（上書き用：このブロックで既存のカレンダー CSS を置き換えてください） ===== */
+/* ===== カレンダー表示：レスポンシブ改善（末尾に追記または既存ブロックを置換） ===== */
 
-/* コンテナ内のカレンダー全体 */
 #calendarPreview.calendar-preview {
   display: flex;
   gap: 18px;
   flex-wrap: wrap;
   align-items: flex-start;
-  justify-content: space-between;
+  justify-content: center; /* 中央寄せにして左右余白を美しく */
   margin-top: 12px;
 }
 
-/* 月ボックス：幅は 2カラム（余白を差し引いて半分） — 横幅に余裕があれば横並びになります */
+/* 基本は 2 カラム（十分な幅があるとき） */
 #calendarPreview .month-box {
   background: #fffaf0;
   border: 1px solid #ebd8b0;
@@ -316,10 +315,10 @@ td.staff-cell { color:#6b4423; font-weight:600; }
   box-shadow: 0 3px 10px rgba(0,0,0,0.04);
   box-sizing: border-box;
 
-  /* 2カラム表示を基本にする */
-  width: calc(50% - 9px);   /* gap を考慮して半分に調整 */
-  max-width: 560px;        /* 必要なら調整 */
-  min-width: 280px;        /* 極端に狭くならないようにする */
+  /* 幅の振り分け：横並び時は 48% を目安にし、gap を考慮 */
+  flex: 0 1 calc(48% - 9px);
+  max-width: 720px;   /* 広い画面でも極端に大きくならないように */
+  min-width: 300px;   /* 狭すぎるとセルが潰れるので最低幅を設定 */
 }
 
 /* 月タイトル */
@@ -330,27 +329,29 @@ td.staff-cell { color:#6b4423; font-weight:600; }
   margin-bottom: 8px;
 }
 
-/* 曜日ヘッダ：強制的に7列グリッドにする（他のスタイルの上書き対策で #calendarPreview を付与）*/
+/* 曜日ヘッダ：必ず7列になるように優先度を上げる */
 #calendarPreview .weekdays {
   display: grid !important;
   grid-template-columns: repeat(7, 1fr) !important;
-  gap: 4px;
+  gap: 6px;
   color: #8a6b44;
   font-weight: 600;
   text-align: center;
-  font-size: .9rem;
-  margin-bottom: 6px;
+  font-size: 0.92rem;
+  margin-bottom: 8px;
   align-items: center;
 }
 
-/* 日付グリッド：7列 */
+/* 日付グリッド：7列、行高さを固定して崩れを防ぐ */
 #calendarPreview .days-grid {
   display: grid !important;
   grid-template-columns: repeat(7, 1fr) !important;
   gap: 8px;
+  /* 行の最小高さ・均一化（アイテム間の高さ差を小さくする） */
+  grid-auto-rows: minmax(64px, auto);
 }
 
-/* 日セル：縦に整列する（日付は上、ステータスは下に）*/
+/* 日セルの調整：テキスト折返し・バッジの縮小対応 */
 #calendarPreview .day-cell {
   min-height: 72px;
   padding: 8px;
@@ -360,20 +361,21 @@ td.staff-cell { color:#6b4423; font-weight:600; }
   box-sizing: border-box;
   position: relative;
   font-size: 0.92rem;
-  color: #4b3a2a;
 
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
+  overflow: hidden;         /* はみ出し防止 */
+  word-break: break-word;
 }
 
-/* 当月外の日は淡色表示 */
-#calendarPreview .day-cell.inactive { opacity: 0.45; background: #fbf7ee; }
+/* 当月外は淡色に */
+#calendarPreview .day-cell.inactive { opacity: 0.55; background: #fbf7ee; }
 
 /* 日番号 */
-#calendarPreview .day-num { font-weight:700; color:#6b4423; margin-bottom:6px; }
+#calendarPreview .day-num { font-weight: 700; color: #6b4423; margin-bottom: 6px; font-size: 1rem; }
 
-/* ステータス領域はセルの下部に寄せる */
+/* ステータス領域は下に寄せる */
 #calendarPreview .status {
   margin-top: auto;
   display: flex;
@@ -384,29 +386,77 @@ td.staff-cell { color:#6b4423; font-weight:600; }
   width: 100%;
 }
 
-/* バッジ */
-#calendarPreview .status .badge { padding: 4px 8px; border-radius: 6px; font-weight:700; color:#fff; white-space:nowrap; }
-#calendarPreview .badge-closed { background:#b56b3c; }     /* 休 */
-#calendarPreview .badge-available { background:#6b9a5a; }  /* 空 */
-#calendarPreview .badge-full { background:#c04a4a; }       /* 満 */
-
-/* 金・土 の二分割状態 */
-#calendarPreview .day-status-split { display:flex; gap:6px; width:100%; justify-content:space-between; }
-#calendarPreview .split-left, #calendarPreview .split-right { flex:1; text-align:center; padding:6px 4px; border-radius:6px; color:#fff; font-weight:700; font-size:0.92rem; }
-#calendarPreview .split-left { margin-right:4px; }
-#calendarPreview .split-right { margin-left:4px; }
-#calendarPreview .split-left.empty, #calendarPreview .split-right.empty { background:#6b9a5a; }
-#calendarPreview .split-left.full,  #calendarPreview .split-right.full  { background:#c04a4a; }
-
-/* レスポンシブ：画面が狭ければ縦並びにする */
-@media (max-width: 920px) {
-  #calendarPreview .month-box { width: 100%; max-width: 100%; }
-  #calendarPreview { justify-content: center; }
-  #calendarPreview .days-grid { gap: 6px; }
+/* バッジは狭い場合に縮むようにする */
+#calendarPreview .status .badge {
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-weight: 700;
+  color: #fff;
+  white-space: nowrap;
+  font-size: 0.86rem;
 }
 
-/* ===== end calendar preview override ===== */
-      .month-box { width: 100%; }
-      .calendar-preview { gap:12px; }
-      .day-cell { min-height:64px; padding:6px; }
-    }
+/* 金土の分割表示は小さな画面で縦積みに変えられるように */
+#calendarPreview .day-status-split {
+  display: flex;
+  gap: 6px;
+  width: 100%;
+  justify-content: space-between;
+}
+#calendarPreview .split-left, #calendarPreview .split-right {
+  flex: 1;
+  text-align: center;
+  padding: 6px 4px;
+  border-radius: 6px;
+  color: #fff;
+  font-weight: 700;
+  font-size: 0.88rem;
+}
+#calendarPreview .split-left { margin-right: 4px; }
+#calendarPreview .split-right { margin-left: 4px; }
+
+/* バッジ色 */
+#calendarPreview .badge-closed { background: #b56b3c; }
+#calendarPreview .badge-available { background: #6b9a5a; }
+#calendarPreview .badge-full { background: #c04a4a; }
+
+/* 小さい幅：1カラム（スマホ / 縦 iPad） */
+@media (max-width: 920px) {
+  #calendarPreview .month-box {
+    flex: 0 1 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
+  #calendarPreview .day-num { font-size: 0.98rem; }
+  #calendarPreview .status .badge, #calendarPreview .split-left, #calendarPreview .split-right {
+    font-size: 0.88rem;
+    padding: 4px 6px;
+  }
+}
+
+/* 中〜横向きタブレット向け：2カラムを維持しつつセルを少し圧縮 */
+@media (min-width: 921px) and (max-width: 1200px) {
+  #calendarPreview .month-box {
+    flex: 0 1 calc(50% - 12px);
+    max-width: calc(50% - 12px);
+    min-width: 300px;
+  }
+  #calendarPreview .days-grid { gap: 6px; grid-auto-rows: minmax(56px, auto); }
+  #calendarPreview .day-cell { min-height: 64px; padding: 6px; }
+}
+
+/* 広いデスクトップ：左右に余白を作りつつ大きめの月ボックスを表示 */
+@media (min-width: 1201px) {
+  #calendarPreview .month-box {
+    flex: 0 1 calc(48% - 18px);
+    max-width: 720px;
+    min-width: 340px;
+  }
+  #calendarPreview .days-grid { gap: 10px; grid-auto-rows: minmax(72px, auto); }
+  #calendarPreview .day-cell { min-height: 80px; padding: 10px; }
+}
+
+/* 更に視覚調整：バッジのテキストがはみ出す場合に省略する（必要なら） */
+#calendarPreview .status .badge { text-overflow: ellipsis; overflow: hidden; }
+
+/* ===== end responsive calendar tweaks ===== */
