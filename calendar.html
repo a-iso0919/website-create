@@ -29,6 +29,14 @@
 
     <h3>登録済みの臨時休業日</h3>
     <div id="closedList"></div>
+
+    <!-- カレンダープレビュー（今月・来月） -->
+    <section id="calendarPreviewSection" style="grid-column:1/-1;margin-top:18px;">
+      <h3 style="margin:8px 0 12px 0;color:#6b4423;">カレンダー（今月 / 来月）</h3>
+      <div id="calendarPreview" class="calendar-preview">
+        <!-- JS がここに2つの月カレンダーを描画します -->
+      </div>
+    </section>
   </div>
 
 <script>
@@ -50,8 +58,10 @@
       window.location.href = 'login.html';
       return;
     }
-    // else: load list
+    // else: load list and render calendars
     watchClosedDates();
+    // render calendar preview (after closed dates are being watched; function will load closed dates itself too)
+    renderCalendarsPreview().catch(e => console.error(e));
   });
 
   document.getElementById('backBtn').addEventListener('click', ()=> {
@@ -151,6 +161,180 @@
       }
     });
   }
+
+  /* ------------------ カレンダープレビュー機能 ------------------ */
+  // テーブル定義（index.html と同じものをここにコピー）
+  const TABLE_CAPACITY = {"T1":4,"T2":4,"T4":2,"T5":2,"T6":2,"T7":2,"T8":2,"T9":2,"T10":2};
+  const TABLES = Object.keys(TABLE_CAPACITY);
+  const TOTAL_SEATS = TABLES.reduce((s, t) => s + (TABLE_CAPACITY[t]||0), 0);
+
+  // closed dates set used for preview (loaded from closed_dates collection)
+  let _closedDatesSet_forCalendar = new Set();
+
+  async function loadClosedDatesForCalendar() {
+    try {
+      const snap = await db.collection('closed_dates').get();
+      _closedDatesSet_forCalendar.clear();
+      snap.docs.forEach(d => { const data = d.data(); if (data && data.date) _closedDatesSet_forCalendar.add(data.date); });
+    } catch (e) {
+      console.warn('closed_dates load failed', e);
+    }
+  }
+
+  // isDefaultClosed (same logic as index): Sunday and 2nd/4th Monday
+  function isDefaultClosed(dateObj) {
+    if (!dateObj || !(dateObj instanceof Date)) return false;
+    const day = dateObj.getDay();
+    if (day === 0) return true; // Sunday
+    if (day === 1) {
+      const year = dateObj.getFullYear();
+      const month = dateObj.getMonth();
+      let mondayCount = 0;
+      for (let d = 1; d <= dateObj.getDate(); d++) {
+        const dt = new Date(year, month, d);
+        if (dt.getDay() === 1) mondayCount++;
+      }
+      if (mondayCount === 2 || mondayCount === 4) return true;
+    }
+    return false;
+  }
+
+  // YYYY-MM-DD string helper
+  function ymdString(d) {
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  }
+
+  // Fetch reservations in date range and summarize reserved seats per date/time
+  async function fetchReservationsSummary(startYmd, endYmd) {
+    const resMap = {}; // resMap[date][timeKey] = totalReservedSeats
+    try {
+      const q = db.collection('shimizu_cafe_reservations').where('date', '>=', startYmd).where('date', '<=', endYmd);
+      const snap = await q.get();
+      snap.docs.forEach(doc => {
+        const r = doc.data();
+        if (!r || !r.date) return;
+        const date = r.date;
+        const time = r.time || '';
+        const tables = Array.isArray(r.tables) ? r.tables : [];
+        const reservedSeats = (tables || []).reduce((s,tNo) => s + (TABLE_CAPACITY[tNo]||0), 0);
+        if (!resMap[date]) resMap[date] = {};
+        const key = time;
+        resMap[date][key] = (resMap[date][key]||0) + reservedSeats;
+      });
+    } catch (err) {
+      console.error('fetchReservationsSummary fail', err);
+    }
+    return resMap;
+  }
+
+  // build month grid (weeks)
+  function buildMonthGrid(year, month, resSummary) {
+    const first = new Date(year, month, 1);
+    const last = new Date(year, month + 1, 0);
+    const grid = [];
+    const startDate = new Date(first);
+    startDate.setDate(first.getDate() - first.getDay());
+    const endDate = new Date(last);
+    endDate.setDate(last.getDate() + (6 - last.getDay()));
+
+    let cur = new Date(startDate);
+    while (cur <= endDate) {
+      const week = [];
+      for (let i = 0; i < 7; i++) {
+        const cellDate = new Date(cur);
+        const ymd = ymdString(cellDate);
+        let isClosed = _closedDatesSet_forCalendar.has(ymd) || isDefaultClosed(cellDate);
+        const lunchReserved = ((resSummary[ymd] && ( (resSummary[ymd]['11:00']||0) + (resSummary[ymd]['13:00']||0) )) || 0);
+        const dinnerReserved = ((resSummary[ymd] && (resSummary[ymd]['dinner']||0)) || 0);
+        const lunchFull = lunchReserved >= TOTAL_SEATS;
+        const dinnerFull = dinnerReserved >= TOTAL_SEATS;
+        week.push({
+          date: new Date(cellDate),
+          ymd, isCurrentMonth: cellDate.getMonth() === month,
+          isClosed, lunchFull, dinnerFull
+        });
+        cur.setDate(cur.getDate() + 1);
+      }
+      grid.push(week);
+    }
+    return { grid, first, last };
+  }
+
+  function renderCalendarPreviewInto(containerEl, year, month, resSummary) {
+    const mb = document.createElement('div'); mb.className = 'month-box';
+    const title = document.createElement('div'); title.className = 'month-title';
+    const mm = month + 1;
+    title.textContent = `${year}年 ${mm}月`;
+    mb.appendChild(title);
+
+    const weekdays = document.createElement('div'); weekdays.className = 'weekdays';
+    ['日','月','火','水','木','金','土'].forEach(w => {
+      const el = document.createElement('div'); el.textContent = w; weekdays.appendChild(el);
+    });
+    mb.appendChild(weekdays);
+
+    const { grid } = buildMonthGrid(year, month, resSummary);
+    const daysGrid = document.createElement('div'); daysGrid.className = 'days-grid';
+
+    grid.forEach(week => {
+      week.forEach(cell => {
+        const d = document.createElement('div');
+        d.className = 'day-cell' + (cell.isCurrentMonth ? '' : ' inactive');
+        const num = document.createElement('div'); num.className = 'day-num'; num.textContent = cell.date.getDate();
+        d.appendChild(num);
+
+        const st = document.createElement('div'); st.className = 'status';
+
+        if (cell.isClosed) {
+          const b = document.createElement('div'); b.className = 'badge badge-closed'; b.textContent = '休'; st.appendChild(b);
+        } else {
+          const dow = cell.date.getDay();
+          if (dow === 5 || dow === 6) {
+            const split = document.createElement('div'); split.className = 'day-status-split';
+            const left = document.createElement('div'); left.className = 'split-left ' + (cell.lunchFull ? 'full' : 'empty'); left.textContent = cell.lunchFull ? '満' : '空';
+            const right = document.createElement('div'); right.className = 'split-right ' + (cell.dinnerFull ? 'full' : 'empty'); right.textContent = cell.dinnerFull ? '満' : '空';
+            split.appendChild(left); split.appendChild(right);
+            st.appendChild(split);
+          } else {
+            const combinedFull = cell.lunchFull;
+            const b = document.createElement('div'); b.className = 'badge ' + (combinedFull ? 'badge-full' : 'badge-available'); b.textContent = combinedFull ? '満' : '空';
+            st.appendChild(b);
+          }
+        }
+
+        d.appendChild(st);
+        daysGrid.appendChild(d);
+      });
+    });
+
+    mb.appendChild(daysGrid);
+    containerEl.appendChild(mb);
+  }
+
+  async function renderCalendarsPreview() {
+    const container = document.getElementById('calendarPreview');
+    if (!container) return;
+    container.innerHTML = '';
+    await loadClosedDatesForCalendar();
+
+    const now = new Date();
+    const start = new Date(now.getFullYear(), now.getMonth(), 1);
+    const end = new Date(now.getFullYear(), now.getMonth() + 2, 0);
+    const startYmd = ymdString(start);
+    const endYmd = ymdString(end);
+
+    const resSummary = await fetchReservationsSummary(startYmd, endYmd);
+
+    const cYear = now.getFullYear();
+    const cMonth = now.getMonth();
+    renderCalendarPreviewInto(container, cYear, cMonth, resSummary);
+    renderCalendarPreviewInto(container, cYear + (cMonth === 11 ? 1 : 0), (cMonth + 1) % 12, resSummary);
+  }
+
+  // If you want to refresh preview when closed_dates change, you could watch closed_dates and call renderCalendarsPreview again.
+  // For simplicity we keep it one-shot on auth ready; if you update closed dates via this page, reload to refresh preview.
+  /* ------------------ end calendar preview ------------------ */
+
 </script>
 </body>
 </html>
