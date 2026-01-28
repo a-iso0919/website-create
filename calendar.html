@@ -39,7 +39,7 @@
     </section>
   </div>
 
-  <!-- 日別予約モーダル（削除/編集はせず閲覧用） -->
+  <!-- 日別予約モーダル（閲覧用） -->
   <div id="dayModal" style="display:none;">
     <div id="dayModalBackdrop" style="position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:100000;"></div>
     <div id="dayModalContent" role="dialog" aria-modal="true" style="position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);background:#fff;padding:18px;border-radius:10px;z-index:100001;min-width:320px;max-width:860px;box-shadow:0 10px 30px rgba(0,0,0,0.25);">
@@ -239,61 +239,61 @@
     return resMap;
   }
 
-  // buildMonthGrid (ランチ判定を 11:00 / 13:00 個別で評価し、金土は左右表示)
-function buildMonthGrid(year, month, resSummary) {
-  const first = new Date(year, month, 1);
-  const last = new Date(year, month + 1, 0);
-  const grid = [];
-  // 開始は 1日のある週の Sunday
-  const startDate = new Date(first);
-  startDate.setDate(first.getDate() - first.getDay());
-  // 終了は 最後日のある週の Saturday
-  const endDate = new Date(last);
-  endDate.setDate(last.getDate() + (6 - last.getDay()));
+  // buildMonthGrid (ランチ判定を 11:00 / 13:00 個別で評価し、金土は 11/13/ディナー 表示)
+  function buildMonthGrid(year, month, resSummary) {
+    const first = new Date(year, month, 1);
+    const last = new Date(year, month + 1, 0);
+    const grid = [];
+    // 開始は 1日のある週の Sunday
+    const startDate = new Date(first);
+    startDate.setDate(first.getDate() - first.getDay());
+    // 終了は 最後日のある週の Saturday
+    const endDate = new Date(last);
+    endDate.setDate(last.getDate() + (6 - last.getDay()));
 
-  let cur = new Date(startDate);
-  while (cur <= endDate) {
-    const week = [];
-    for (let i = 0; i < 7; i++) {
-      const cellDate = new Date(cur);
-      const ymd = ymdString(cellDate);
-      const isClosed = _closedDatesSet_forCalendar.has(ymd) || isDefaultClosed(cellDate);
+    let cur = new Date(startDate);
+    while (cur <= endDate) {
+      const week = [];
+      for (let i = 0; i < 7; i++) {
+        const cellDate = new Date(cur);
+        const ymd = ymdString(cellDate);
+        const isClosed = _closedDatesSet_forCalendar.has(ymd) || isDefaultClosed(cellDate);
 
-      // 予約集計（存在しない場合は 0） — 11:00 / 13:00 / dinner を個別に扱う
-      const daySummary = (resSummary && resSummary[ymd]) ? resSummary[ymd] : {};
-      const reserved11 = Number(daySummary['11:00'] || 0);
-      const reserved13 = Number(daySummary['13:00'] || 0);
-      const reservedDinner = Number(daySummary['dinner'] || 0);
+        // 予約集計（存在しない場合は 0） — 11:00 / 13:00 / dinner を個別に扱う
+        const daySummary = (resSummary && resSummary[ymd]) ? resSummary[ymd] : {};
+        const reserved11 = Number(daySummary['11:00'] || 0);
+        const reserved13 = Number(daySummary['13:00'] || 0);
+        const reservedDinner = Number(daySummary['dinner'] || 0);
 
-      // ランチは「11:00 と 13:00 が両方満席のときだけ満とする」
-      // （片方でも空きがあれば '空' を表示するという要件）
-      const lunchFull = (reserved11 >= TOTAL_SEATS) && (reserved13 >= TOTAL_SEATS);
+        // ランチは「11:00 と 13:00 が両方満席のときだけ満とする」
+        // （片方でも空きがあれば '空' を表示するという要件）
+        const lunchFull = (reserved11 >= TOTAL_SEATS) && (reserved13 >= TOTAL_SEATS);
 
-      // ディナーは単独判定
-      const dinnerFull = (reservedDinner >= TOTAL_SEATS);
+        // ディナーは単独判定
+        const dinnerFull = (reservedDinner >= TOTAL_SEATS);
 
-      // 便利のためにツールチップに詳細を入れておく（デバッグ/確認用）
-      const tooltip = `11:00: ${reserved11} / 13:00: ${reserved13} / dinner: ${reservedDinner}`;
+        // tooltip for debug/inspection
+        const tooltip = `11:00: ${reserved11} / 13:00: ${reserved13} / ディナー: ${reservedDinner}`;
 
-      week.push({
-        date: new Date(cellDate),
-        ymd,
-        isCurrentMonth: cellDate.getMonth() === month,
-        isClosed,
-        lunchFull,
-        dinnerFull,
-        reserved11,
-        reserved13,
-        reservedDinner,
-        tooltip
-      });
+        week.push({
+          date: new Date(cellDate),
+          ymd,
+          isCurrentMonth: cellDate.getMonth() === month,
+          isClosed,
+          lunchFull,
+          dinnerFull,
+          reserved11,
+          reserved13,
+          reservedDinner,
+          tooltip
+        });
 
-      cur.setDate(cur.getDate() + 1);
+        cur.setDate(cur.getDate() + 1);
+      }
+      grid.push(week);
     }
-    grid.push(week);
+    return { grid, first, last };
   }
-  return { grid, first, last };
-}
 
   function renderCalendarPreviewInto(containerEl, year, month, resSummary) {
     const mb = document.createElement('div'); mb.className = 'month-box';
@@ -321,7 +321,7 @@ function buildMonthGrid(year, month, resSummary) {
         const num = document.createElement('div'); num.className = 'day-num'; num.textContent = cell.date.getDate();
         d.appendChild(num);
 
-        // -- lunch time small badges (11/13) --
+        // -- lunch time small badges (11/13) for all days (visual indicator) --
         const lunchRow = document.createElement('div');
         lunchRow.style.display = 'flex';
         lunchRow.style.gap = '6px';
@@ -356,48 +356,53 @@ function buildMonthGrid(year, month, resSummary) {
         } else {
           const dow = cell.date.getDay();
           if (dow === 5 || dow === 6) {
-            // Friday / Saturday: left = lunch (show overall lunch empty/full), right = dinner
-            const split = document.createElement('div'); split.className = 'day-status-split';
-            const left = document.createElement('div');
-            left.className = 'split-left ' + (cell.lunchFull ? 'full' : 'empty');
-            left.style.display = 'flex';
-            left.style.flexDirection = 'column';
-            left.style.alignItems = 'center';
-            // show 11/13 small badges inside left as well (compact)
-            const leftBadges = document.createElement('div');
-            leftBadges.style.display = 'flex';
-            leftBadges.style.gap = '6px';
-            const lb11 = badge11.cloneNode(true);
-            const lb13 = badge13.cloneNode(true);
-            lb11.style.padding = '4px 6px'; lb13.style.padding = '4px 6px';
-            leftBadges.appendChild(lb11); leftBadges.appendChild(lb13);
-            left.appendChild(leftBadges);
-            const leftLabel = document.createElement('div');
-            leftLabel.style.marginTop = '6px';
-            leftLabel.textContent = cell.lunchFull ? '満' : '空';
-            left.appendChild(leftLabel);
+            // Friday / Saturday: show three compact badges: 11 / 13 / ディナー
+            const split = document.createElement('div');
+            split.style.display = 'flex';
+            split.style.gap = '8px';
+            split.style.width = '100%';
+            split.style.justifyContent = 'center';
+            split.style.alignItems = 'center';
 
-            const right = document.createElement('div');
-            right.className = 'split-right ' + (cell.dinnerFull ? 'full' : 'empty');
-            right.style.display = 'flex';
-            right.style.flexDirection = 'column';
-            right.style.alignItems = 'center';
-            const rightLabel = document.createElement('div');
-            rightLabel.textContent = cell.dinnerFull ? '満' : '空';
-            right.appendChild(rightLabel);
-            // also show dinner reserved number small
-            const rightSmall = document.createElement('div');
-            rightSmall.style.fontSize = '0.75rem';
-            rightSmall.style.color = '#fff';
-            rightSmall.style.opacity = '0.9';
-            rightSmall.style.marginTop = '6px';
-            rightSmall.textContent = `${cell.reservedDinner}席`;
-            right.appendChild(rightSmall);
+            // 11 badge (compact)
+            const small11 = document.createElement('div');
+            small11.textContent = '11';
+            small11.style.flex = '0 0 auto';
+            small11.style.padding = '6px 8px';
+            small11.style.borderRadius = '8px';
+            small11.style.fontWeight = '700';
+            small11.style.color = '#fff';
+            small11.style.fontSize = '0.9rem';
+            small11.style.background = (cell.reserved11 >= TOTAL_SEATS) ? '#c04a4a' : '#6b9a5a';
+            split.appendChild(small11);
 
-            split.appendChild(left); split.appendChild(right);
+            // 13 badge (compact)
+            const small13 = document.createElement('div');
+            small13.textContent = '13';
+            small13.style.flex = '0 0 auto';
+            small13.style.padding = '6px 8px';
+            small13.style.borderRadius = '8px';
+            small13.style.fontWeight = '700';
+            small13.style.color = '#fff';
+            small13.style.fontSize = '0.9rem';
+            small13.style.background = (cell.reserved13 >= TOTAL_SEATS) ? '#c04a4a' : '#6b9a5a';
+            split.appendChild(small13);
+
+            // Dinner badge (compact, labelled ディナー)
+            const smallDinner = document.createElement('div');
+            smallDinner.textContent = 'ディナー';
+            smallDinner.style.flex = '0 0 auto';
+            smallDinner.style.padding = '6px 10px';
+            smallDinner.style.borderRadius = '8px';
+            smallDinner.style.fontWeight = '700';
+            smallDinner.style.color = '#fff';
+            smallDinner.style.fontSize = '0.85rem';
+            smallDinner.style.background = (cell.reservedDinner >= TOTAL_SEATS) ? '#c04a4a' : '#6b9a5a';
+            split.appendChild(smallDinner);
+
             st.appendChild(split);
           } else {
-            // Weekday: show 11/13 small badges (already added) and overall badge for lunch
+            // Weekday: show overall badge for lunch (based on combined rule)
             const combinedFull = cell.lunchFull;
             const b = document.createElement('div');
             b.className = 'badge ' + (combinedFull ? 'badge-full' : 'badge-available');
