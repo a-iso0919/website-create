@@ -39,16 +39,54 @@
     </section>
   </div>
 
-  <!-- 日別予約モーダル（閲覧用） -->
+  <!-- 日別予約モーダル（閲覧＋新規予約） -->
   <div id="dayModal" style="display:none;">
     <div id="dayModalBackdrop" style="position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:100000;"></div>
-    <div id="dayModalContent" role="dialog" aria-modal="true" style="position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);background:#fff;padding:18px;border-radius:10px;z-index:100001;min-width:320px;max-width:860px;box-shadow:0 10px 30px rgba(0,0,0,0.25);">
+    <div id="dayModalContent" role="dialog" aria-modal="true"
+         style="position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);background:#fff;padding:18px;border-radius:10px;z-index:100001;min-width:320px;max-width:920px;box-shadow:0 10px 30px rgba(0,0,0,0.25);">
       <h3 id="dayModalTitle" style="margin:0 0 10px 0;color:#6b4423;">日付の予約</h3>
       <div id="dayModalInfo" style="margin-bottom:10px;color:#333;font-size:0.95rem;"></div>
-      <div id="dayModalList" style="max-height:50vh; overflow:auto; margin-bottom:12px;"></div>
-      <div style="text-align:right;">
-        <button id="closeDayModalBtn" class="act-btn" style="background:linear-gradient(90deg,#c4c4c4,#e0e0e0);color:#333;padding:8px 12px;border-radius:8px;">閉じる</button>
+
+      <!-- 既存予約一覧 -->
+      <div id="dayModalList" style="max-height:36vh; overflow:auto; margin-bottom:12px;"></div>
+
+      <hr style="border:none;border-top:1px solid #eee;margin:12px 0;">
+
+      <!-- 新規予約フォーム -->
+      <div id="newResForm" style="margin-bottom:8px;">
+        <div style="font-weight:700;margin-bottom:8px;color:#6b4423;">この日で新規予約を作成</div>
+
+        <!-- 時間選択（動的に11:00/13:00/dinnerを表示） -->
+        <div id="timeOptions" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;"></div>
+
+        <!-- 空いているテーブル（選択可） -->
+        <div style="margin-bottom:8px;">
+          <div style="font-weight:600;margin-bottom:6px;">空きテーブル（クリックで選択）</div>
+          <div id="availableTables" style="display:flex;flex-wrap:wrap;gap:8px;"></div>
+          <div id="noTablesMsg" style="color:#a00;margin-top:6px;display:none;">選択した時間帯に空きテーブルがありません。</div>
+        </div>
+
+        <!-- ユーザー入力 -->
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px;margin-bottom:8px;">
+          <input id="resName" type="text" placeholder="予約者名（必須）" />
+          <input id="resTel" type="text" placeholder="電話番号" />
+          <input id="resNumAdult" type="number" min="0" placeholder="大人数" />
+          <input id="resNumChild" type="number" min="0" placeholder="子供数" />
+        </div>
+        <textarea id="resNote" placeholder="備考（任意）" style="width:100%;padding:8px;border-radius:8px;border:1px solid #ddd;margin-bottom:8px;"></textarea>
+
+        <!-- 担当者（現在のユーザーをデフォルト） -->
+        <div style="display:flex;gap:8px;align-items:center;justify-content:flex-end;margin-bottom:8px;">
+          <label style="font-weight:600;color:#6b4423;">担当者</label>
+          <input id="resStaff" type="text" readonly style="background:#f3f0e6;padding:6px;border-radius:6px;border:1px solid #e3d9c6;" />
+        </div>
+
+        <div style="text-align:right;display:flex;gap:8px;justify-content:flex-end;">
+          <button id="cancelNewResBtn" class="act-btn" style="background:linear-gradient(90deg,#c4c4c4,#e0e0e0);color:#333;padding:8px 12px;border-radius:8px;">キャンセル</button>
+          <button id="createNewResBtn" class="act-btn" style="background:linear-gradient(90deg,#e69527,#c38b2a);color:#fff;padding:8px 12px;border-radius:8px;">予約する</button>
+        </div>
       </div>
+
     </div>
   </div>
 
@@ -96,12 +134,10 @@
     if (!val) { alert('日付を選択してください'); return; }
 
     try {
-      // compute expireAt = now + 365 days
       const now = new Date();
       const expireDate = new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000);
       const expireAt = firebase.firestore.Timestamp.fromDate(expireDate);
 
-      // Use doc id = YYYY-MM-DD for easy upsert / delete and set createdAt + expireAt
       await db.collection('closed_dates').doc(val).set({
         date: val,
         createdAt: firebase.firestore.FieldValue.serverTimestamp(),
@@ -175,12 +211,10 @@
   }
 
   /* ------------------ カレンダープレビュー機能 ------------------ */
-  // テーブル定義（index.html と同じものをここにコピー）
   const TABLE_CAPACITY = {"T1":4,"T2":4,"T4":2,"T5":2,"T6":2,"T7":2,"T8":2,"T9":2,"T10":2};
   const TABLES = Object.keys(TABLE_CAPACITY);
   const TOTAL_SEATS = TABLES.reduce((s, t) => s + (TABLE_CAPACITY[t]||0), 0);
 
-  // closed dates set used for preview (loaded from closed_dates collection)
   let _closedDatesSet_forCalendar = new Set();
 
   async function loadClosedDatesForCalendar() {
@@ -193,7 +227,6 @@
     }
   }
 
-  // isDefaultClosed (same logic as index): Sunday and 2nd/4th Monday
   function isDefaultClosed(dateObj) {
     if (!dateObj || !(dateObj instanceof Date)) return false;
     const day = dateObj.getDay();
@@ -211,14 +244,12 @@
     return false;
   }
 
-  // YYYY-MM-DD string helper
   function ymdString(d) {
     return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
   }
 
-  // Fetch reservations in date range and summarize reserved seats per date/time
   async function fetchReservationsSummary(startYmd, endYmd) {
-    const resMap = {}; // resMap[date][timeKey] = totalReservedSeats
+    const resMap = {};
     try {
       const q = db.collection('shimizu_cafe_reservations').where('date', '>=', startYmd).where('date', '<=', endYmd);
       const snap = await q.get();
@@ -230,8 +261,7 @@
         const tables = Array.isArray(r.tables) ? r.tables : [];
         const reservedSeats = (tables || []).reduce((s,tNo) => s + (TABLE_CAPACITY[tNo]||0), 0);
         if (!resMap[date]) resMap[date] = {};
-        const key = time;
-        resMap[date][key] = (resMap[date][key]||0) + reservedSeats;
+        resMap[date][time] = (resMap[date][time]||0) + reservedSeats;
       });
     } catch (err) {
       console.error('fetchReservationsSummary fail', err);
@@ -244,10 +274,8 @@
     const first = new Date(year, month, 1);
     const last = new Date(year, month + 1, 0);
     const grid = [];
-    // 開始は 1日のある週の Sunday
     const startDate = new Date(first);
     startDate.setDate(first.getDate() - first.getDay());
-    // 終了は 最後日のある週の Saturday
     const endDate = new Date(last);
     endDate.setDate(last.getDate() + (6 - last.getDay()));
 
@@ -259,20 +287,14 @@
         const ymd = ymdString(cellDate);
         const isClosed = _closedDatesSet_forCalendar.has(ymd) || isDefaultClosed(cellDate);
 
-        // 予約集計（存在しない場合は 0） — 11:00 / 13:00 / dinner を個別に扱う
         const daySummary = (resSummary && resSummary[ymd]) ? resSummary[ymd] : {};
         const reserved11 = Number(daySummary['11:00'] || 0);
         const reserved13 = Number(daySummary['13:00'] || 0);
         const reservedDinner = Number(daySummary['dinner'] || 0);
 
-        // ランチは「11:00 と 13:00 が両方満席のときだけ満とする」
-        // （片方でも空きがあれば '空' を表示するという要件）
         const lunchFull = (reserved11 >= TOTAL_SEATS) && (reserved13 >= TOTAL_SEATS);
-
-        // ディナーは単独判定
         const dinnerFull = (reservedDinner >= TOTAL_SEATS);
 
-        // tooltip for debug/inspection
         const tooltip = `11:00: ${reserved11} / 13:00: ${reserved13} / ディナー: ${reservedDinner}`;
 
         week.push({
@@ -321,7 +343,7 @@
         const num = document.createElement('div'); num.className = 'day-num'; num.textContent = cell.date.getDate();
         d.appendChild(num);
 
-        // -- lunch time small badges (11/13) shown at the top for all days --
+        // top: 11 / 13 badges (visual indicator)
         const lunchRow = document.createElement('div');
         lunchRow.style.display = 'flex';
         lunchRow.style.gap = '6px';
@@ -330,22 +352,22 @@
         // 11:00 badge
         const badge11 = document.createElement('div');
         badge11.textContent = '11';
+        badge11.className = (cell.reserved11 >= TOTAL_SEATS) ? 'badge badge-full' : 'badge badge-available';
         badge11.style.padding = '4px 6px';
         badge11.style.borderRadius = '6px';
         badge11.style.fontWeight = '700';
         badge11.style.fontSize = '0.8rem';
         badge11.style.color = '#fff';
-        badge11.style.background = (cell.reserved11 >= TOTAL_SEATS) ? '#c04a4a' : '#6b9a5a';
         lunchRow.appendChild(badge11);
         // 13:00 badge
         const badge13 = document.createElement('div');
         badge13.textContent = '13';
+        badge13.className = (cell.reserved13 >= TOTAL_SEATS) ? 'badge badge-full' : 'badge badge-available';
         badge13.style.padding = '4px 6px';
         badge13.style.borderRadius = '6px';
         badge13.style.fontWeight = '700';
         badge13.style.fontSize = '0.8rem';
         badge13.style.color = '#fff';
-        badge13.style.background = (cell.reserved13 >= TOTAL_SEATS) ? '#c04a4a' : '#6b9a5a';
         lunchRow.appendChild(badge13);
         d.appendChild(lunchRow);
 
@@ -356,19 +378,16 @@
         } else {
           const dow = cell.date.getDay();
           if (dow === 5 || dow === 6) {
-            // Friday / Saturday: show compact row with 11 / 13 (top) already shown,
-            // bottom should only show Dinner badge (label "ディナー") — no duplicate 11/13 here.
+            // Friday / Saturday: bottom shows only a single "ディナー" badge
             const dinnerBadge = document.createElement('div');
             dinnerBadge.textContent = 'ディナー';
+            dinnerBadge.className = (cell.reservedDinner >= TOTAL_SEATS) ? 'badge badge-full' : 'badge badge-available';
             dinnerBadge.style.padding = '6px 10px';
             dinnerBadge.style.borderRadius = '8px';
             dinnerBadge.style.fontWeight = '700';
-            dinnerBadge.style.color = '#fff';
             dinnerBadge.style.fontSize = '0.9rem';
-            dinnerBadge.style.background = (cell.reservedDinner >= TOTAL_SEATS) ? '#c04a4a' : '#6b9a5a';
             st.appendChild(dinnerBadge);
           } else {
-            // Weekday: show overall badge for lunch (based on combined rule)
             const combinedFull = cell.lunchFull;
             const b = document.createElement('div');
             b.className = 'badge ' + (combinedFull ? 'badge-full' : 'badge-available');
@@ -379,7 +398,7 @@
 
         d.appendChild(st);
 
-        // click -> open day modal listing reservations for this date
+        // click -> open day modal listing reservations for this date and show new-res form
         d.style.cursor = 'pointer';
         d.addEventListener('click', (ev) => {
           ev.stopPropagation();
@@ -395,76 +414,269 @@
   }
 
   // show a modal listing reservations for a given YYYY-MM-DD
+  // extended: also render available tables per time and allow creating reservation
   async function showDayReservations(ymd) {
     const modal = document.getElementById('dayModal');
     const infoEl = document.getElementById('dayModalInfo');
     const listEl = document.getElementById('dayModalList');
     const titleEl = document.getElementById('dayModalTitle');
+    const timeOptionsEl = document.getElementById('timeOptions');
+    const availableTablesEl = document.getElementById('availableTables');
+    const noTablesMsg = document.getElementById('noTablesMsg');
+    const resStaffInput = document.getElementById('resStaff');
+
     if (!modal || !listEl || !infoEl) return;
 
     titleEl.textContent = `予約一覧 — ${ymd}`;
     infoEl.textContent = '読み込み中...';
     listEl.innerHTML = '';
+    timeOptionsEl.innerHTML = '';
+    availableTablesEl.innerHTML = '';
+    noTablesMsg.style.display = 'none';
+
+    // prefill staff input
+    const user = firebase.auth().currentUser;
+    resStaffInput.value = (user && (user.displayName || user.email)) || '';
+
     modal.style.display = 'block';
     document.getElementById('dayModalContent').focus?.();
 
     try {
-      const snap = await db.collection('shimizu_cafe_reservations').where('date','==',ymd).orderBy('time').orderBy('createdAt').get();
-      if (snap.empty) {
-        infoEl.textContent = '予約はありません';
-        return;
-      }
-      infoEl.textContent = '';
+      // fetch all reservations for this date
+      const snap = await db.collection('shimizu_cafe_reservations').where('date','==',ymd).orderBy('time').get();
       const docs = snap.docs.map(d => ({ id:d.id, ...d.data() }));
-      // Group by time key for clarity
-      const grouped = {};
-      docs.forEach(r => {
-        const t = r.time || '(不明)';
-        if (!grouped[t]) grouped[t] = [];
-        grouped[t].push(r);
-      });
-      // Render
-      for (const timeKey of Object.keys(grouped).sort()) {
-        const hdr = document.createElement('div');
-        hdr.style.fontWeight = '700';
-        hdr.style.marginTop = '8px';
-        hdr.style.marginBottom = '6px';
-        hdr.textContent = `時間: ${timeKey}`;
-        listEl.appendChild(hdr);
 
-        const tbl = document.createElement('table');
-        tbl.style.width = '100%';
-        tbl.style.borderCollapse = 'collapse';
-        tbl.style.marginBottom = '8px';
-        const thead = document.createElement('thead');
-        thead.innerHTML = '<tr><th style="text-align:left;padding:6px;border-bottom:1px solid #ddd;">テーブル</th><th style="text-align:left;padding:6px;border-bottom:1px solid #ddd;">人数</th><th style="text-align:left;padding:6px;border-bottom:1px solid #ddd;">名前</th><th style="text-align:left;padding:6px;border-bottom:1px solid #ddd;">電話</th><th style="text-align:left;padding:6px;border-bottom:1px solid #ddd;">担当者</th><th style="text-align:left;padding:6px;border-bottom:1px solid #ddd;">備考</th></tr>';
-        tbl.appendChild(thead);
-        const tbody = document.createElement('tbody');
-        grouped[timeKey].forEach(r => {
-          const tr = document.createElement('tr');
-          const tdTables = document.createElement('td'); tdTables.style.padding = '6px'; tdTables.textContent = (r.tables||[]).join(', ');
-          const tdNum = document.createElement('td'); tdNum.style.padding = '6px'; tdNum.textContent = `${r.numAdult||0} / ${r.numChild||0}`;
-          const tdName = document.createElement('td'); tdName.style.padding = '6px'; tdName.textContent = r.name || '';
-          const tdTel = document.createElement('td'); tdTel.style.padding = '6px'; tdTel.textContent = r.tel || '';
-          const tdStaff = document.createElement('td'); tdStaff.style.padding = '6px'; tdStaff.textContent = r.staff || '';
-          const tdNote = document.createElement('td'); tdNote.style.padding = '6px'; tdNote.textContent = r.note || '';
-          tr.appendChild(tdTables); tr.appendChild(tdNum); tr.appendChild(tdName); tr.appendChild(tdTel); tr.appendChild(tdStaff); tr.appendChild(tdNote);
-          tbody.appendChild(tr);
+      // show existing reservations grouped by time
+      listEl.innerHTML = '';
+      if (docs.length === 0) {
+        listEl.innerHTML = '<div style="color:#666">予約はありません</div>';
+      } else {
+        const grouped = {};
+        docs.forEach(r => {
+          const t = r.time || '(不明)';
+          if (!grouped[t]) grouped[t] = [];
+          grouped[t].push(r);
         });
-        tbl.appendChild(tbody);
-        listEl.appendChild(tbl);
+        Object.keys(grouped).sort().forEach(timeKey => {
+          const hdr = document.createElement('div');
+          hdr.style.fontWeight = '700';
+          hdr.style.marginTop = '8px';
+          hdr.style.marginBottom = '6px';
+          hdr.textContent = `時間: ${timeKey}`;
+          listEl.appendChild(hdr);
+
+          const tbl = document.createElement('table');
+          tbl.style.width = '100%';
+          tbl.style.borderCollapse = 'collapse';
+          tbl.style.marginBottom = '8px';
+          const thead = document.createElement('thead');
+          thead.innerHTML = '<tr><th style="text-align:left;padding:6px;border-bottom:1px solid #ddd;">テーブル</th><th style="text-align:left;padding:6px;border-bottom:1px solid #ddd;">人数</th><th style="text-align:left;padding:6px;border-bottom:1px solid #ddd;">名前</th><th style="text-align:left;padding:6px;border-bottom:1px solid #ddd;">担当者</th><th style="text-align:left;padding:6px;border-bottom:1px solid #ddd;">備考</th></tr>';
+          tbl.appendChild(thead);
+          const tbody = document.createElement('tbody');
+          grouped[timeKey].forEach(r => {
+            const tr = document.createElement('tr');
+            const tdTables = document.createElement('td'); tdTables.style.padding = '6px'; tdTables.textContent = (r.tables||[]).join(', ');
+            const tdNum = document.createElement('td'); tdNum.style.padding = '6px'; tdNum.textContent = `${r.numAdult||0} / ${r.numChild||0}`;
+            const tdName = document.createElement('td'); tdName.style.padding = '6px'; tdName.textContent = r.name || '';
+            const tdStaff = document.createElement('td'); tdStaff.style.padding = '6px'; tdStaff.textContent = r.staff || '';
+            const tdNote = document.createElement('td'); tdNote.style.padding = '6px'; tdNote.textContent = r.note || '';
+            tr.appendChild(tdTables); tr.appendChild(tdNum); tr.appendChild(tdName); tr.appendChild(tdStaff); tr.appendChild(tdNote);
+            tbody.appendChild(tr);
+          });
+          tbl.appendChild(tbody);
+          listEl.appendChild(tbl);
+        });
       }
+
+      // compute used tables per time
+      const usedByTime = {}; // timeKey -> Set(tables)
+      docs.forEach(r => {
+        const t = r.time || '';
+        if (!usedByTime[t]) usedByTime[t] = new Set();
+        (r.tables||[]).forEach(tn => usedByTime[t].add(tn));
+      });
+
+      // determine which time options to show: always show 11:00,13:00;
+      // show dinner if weekday is Fri/Sat (or if any dinner reservations exist)
+      const dateObj = new Date(ymd + 'T00:00:00');
+      const dow = dateObj.getDay();
+      const showDinner = (dow === 5 || dow === 6) || !!usedByTime['dinner'];
+
+      const timeKeys = ['11:00','13:00'];
+      if (showDinner) timeKeys.push('dinner');
+
+      // render time option radios
+      timeKeys.forEach((tk, idx) => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.textContent = tk === 'dinner' ? 'ディナー' : tk;
+        btn.className = 'act-btn';
+        btn.style.padding = '6px 10px';
+        btn.style.borderRadius = '8px';
+        btn.dataset.time = tk;
+        btn.style.background = idx === 0 ? 'linear-gradient(90deg,#e69527,#c38b2a)' : 'linear-gradient(90deg,#f0d9a8,#e6c889)';
+        btn.style.color = idx === 0 ? '#fff' : '#5a3e1d';
+        // select first by default
+        btn.addEventListener('click', (e) => {
+          // mark selected visual
+          Array.from(timeOptionsEl.children).forEach(c => {
+            c.style.background = 'linear-gradient(90deg,#f0d9a8,#e6c889)';
+            c.style.color = '#5a3e1d';
+          });
+          btn.style.background = 'linear-gradient(90deg,#e69527,#c38b2a)';
+          btn.style.color = '#fff';
+          // render available tables for this time
+          renderAvailableTablesFor(ymd, tk, usedByTime);
+        });
+        timeOptionsEl.appendChild(btn);
+      });
+
+      // trigger initial render for first time key
+      const firstTime = timeKeys[0];
+      // highlight first
+      if (timeOptionsEl.firstChild) {
+        timeOptionsEl.firstChild.style.background = 'linear-gradient(90deg,#e69527,#c38b2a)';
+        timeOptionsEl.firstChild.style.color = '#fff';
+      }
+      renderAvailableTablesFor(ymd, firstTime, usedByTime);
+
     } catch (err) {
       console.error('day reservations fetch failed', err);
       infoEl.textContent = '読み込みに失敗しました: ' + (err.message || err);
     }
   }
 
-  // close modal handlers
-  document.getElementById('closeDayModalBtn').addEventListener('click', () => {
+  // render available tables UI for a given date/time using precomputed usedByTime map
+  function renderAvailableTablesFor(ymd, timeKey, usedByTime) {
+    const availableTablesEl = document.getElementById('availableTables');
+    const noTablesMsg = document.getElementById('noTablesMsg');
+    availableTablesEl.innerHTML = '';
+
+    // compute used tables for selected time
+    const usedSet = (usedByTime && usedByTime[timeKey]) ? usedByTime[timeKey] : new Set();
+
+    // available = TABLES - usedSet
+    const available = TABLES.filter(t => !usedSet.has(t));
+
+    if (available.length === 0) {
+      noTablesMsg.style.display = 'block';
+    } else {
+      noTablesMsg.style.display = 'none';
+      available.forEach(t => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.textContent = t;
+        b.dataset.table = t;
+        b.className = 'act-btn';
+        b.style.padding = '6px 10px';
+        b.style.borderRadius = '8px';
+        b.style.background = '#6b9a5a';
+        b.style.color = '#fff';
+        b.style.fontWeight = '700';
+        b.addEventListener('click', () => {
+          // toggle selection state
+          if (b.dataset.selected === '1') {
+            b.dataset.selected = '0';
+            b.style.opacity = '1';
+            b.style.boxShadow = 'none';
+            b.style.background = '#6b9a5a';
+          } else {
+            b.dataset.selected = '1';
+            b.style.opacity = '0.95';
+            b.style.boxShadow = 'inset 0 0 0 3px rgba(255,255,255,0.14)';
+            b.style.background = '#335e3a';
+          }
+        });
+        availableTablesEl.appendChild(b);
+      });
+    }
+
+    // store current selection state in create handler by reading buttons
+    // Also attach current timeKey to create button's dataset for convenience
+    const createBtn = document.getElementById('createNewResBtn');
+    if (createBtn) createBtn.dataset.time = timeKey;
+
+    // set data attribute on availableTablesEl for the date/time (for create handler)
+    availableTablesEl.dataset.ymd = ymd;
+    availableTablesEl.dataset.time = timeKey;
+  }
+
+  // create reservation handler
+  document.getElementById('createNewResBtn').addEventListener('click', async () => {
+    const createBtn = document.getElementById('createNewResBtn');
+    const availableTablesEl = document.getElementById('availableTables');
+    const ymd = availableTablesEl.dataset.ymd;
+    const timeKey = createBtn.dataset.time;
+    if (!ymd || !timeKey) {
+      alert('日時が取得できません。もう一度お試しください。'); return;
+    }
+
+    // collect selected tables
+    const selButtons = Array.from(availableTablesEl.querySelectorAll('button')).filter(b => b.dataset.selected === '1');
+    if (selButtons.length === 0) {
+      alert('空きテーブルを１つ以上選択してください。'); return;
+    }
+    const tables = selButtons.map(b => b.dataset.table);
+
+    const name = (document.getElementById('resName') || {}).value?.trim();
+    const tel = (document.getElementById('resTel') || {}).value?.trim() || '';
+    const numAdult = Number((document.getElementById('resNumAdult') || {}).value) || 0;
+    const numChild = Number((document.getElementById('resNumChild') || {}).value) || 0;
+    const note = (document.getElementById('resNote') || {}).value || '';
+    const staff = (document.getElementById('resStaff') || {}).value || (firebase.auth().currentUser && (firebase.auth().currentUser.displayName || firebase.auth().currentUser.email)) || '';
+
+    if (!name) { alert('予約者名は必須です'); (document.getElementById('resName') || {}).focus?.(); return; }
+    if (!staff) { alert('担当者情報がありません。ログイン情報を確認してください。'); return; }
+
+    // prepare reservation doc
+    const doc = {
+      date: ymd,
+      time: timeKey,
+      tables: tables,
+      numAdult: numAdult,
+      numChild: numChild,
+      name: name,
+      tel: tel,
+      note: note,
+      staff: staff,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    };
+
+    try {
+      // Optionally: double-check tables are still free (simple check)
+      // fetch existing reservations for same date & time and ensure no overlap
+      const snap = await db.collection('shimizu_cafe_reservations').where('date','==',ymd).where('time','==',timeKey).get();
+      const used = new Set();
+      snap.docs.forEach(d => { (d.data().tables || []).forEach(t => used.add(t)); });
+
+      const conflict = tables.find(t => used.has(t));
+      if (conflict) {
+        alert(`テーブル ${conflict} が既に埋まっています。最新の空き状態に更新します。`);
+        // re-render available tables for same ymd/time by re-fetching reservations via showDayReservations
+        await showDayReservations(ymd);
+        return;
+      }
+
+      // write reservation
+      await db.collection('shimizu_cafe_reservations').add(doc);
+      alert('予約を作成しました');
+      // close modal and refresh calendars
+      document.getElementById('dayModal').style.display = 'none';
+      // refresh calendar preview
+      try { await renderCalendarsPreview(); } catch(e) { console.error(e); }
+    } catch (err) {
+      console.error('create reservation failed', err);
+      alert('予約の作成に失敗しました: ' + (err.message || err));
+    }
+  });
+
+  // cancel new res button
+  document.getElementById('cancelNewResBtn').addEventListener('click', () => {
     const modal = document.getElementById('dayModal');
     if (modal) modal.style.display = 'none';
   });
+
+  // close modal handlers
   document.getElementById('dayModalBackdrop').addEventListener('click', () => {
     const modal = document.getElementById('dayModal');
     if (modal) modal.style.display = 'none';
