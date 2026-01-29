@@ -188,6 +188,19 @@ td.action-cell{ background:transparent; border:none; }
 table tbody tr td {
   border-bottom: 1px solid #e6d9bf; /* 例: 落ち着いたベージュ系の線 */
 }
+/* ===== 追加：操作列 / 担当者列などは .no-divider の影響を受けても下線を表示する ===== */
+table tbody tr.no-divider td.action-cell,
+table tbody tr.no-divider td.staff-cell,
+table tbody tr.no-divider td.merged-cell {
+  border-bottom: 1px solid #e6d9bf !important;
+}
+
+/* 安全策：通常状態でも該当セルに確実に線を表示 */
+table tbody td.action-cell,
+table tbody td.staff-cell,
+table tbody td.merged-cell {
+  border-bottom: 1px solid #e6d9bf;
+}
 
 /* 同一予約で隣接する行は区切り線を消す */
 table tbody tr.no-divider td {
