@@ -983,14 +983,9 @@ function drawTable(res, selectedDate) {
       table.appendChild(thead);
       const tbody = document.createElement("tbody");
 
-      // Determine total number of columns for this table type (used for totals row colspan)
+      // Determine total number of columns for this table type (used for empty rows)
       const totalCols = (timeKey === 'dinner') ? 11 : 9; // matches thead definitions
 
-      // Totals counters for this time block
-      let totalAdults = 0;
-      let totalChildren = 0;
-
-      // Render each table row (either reservation info or empty row)
       TABLES.forEach((tNo, tIndex) => {
         const tr = document.createElement("tr");
 
@@ -1003,121 +998,169 @@ function drawTable(res, selectedDate) {
         // Capacity cell
         const tdCap = document.createElement("td");
         tdCap.className = "cap-cell";
-        tdCap.textContent = TABLE_CAPACITY[tNo] || "";
+        tdCap.textContent = TABLE_CAPACITY[tNo] + "人";
         tr.appendChild(tdCap);
 
-        const info = (grouped[date] && grouped[date][timeKey] && grouped[date][timeKey][tNo]) ? grouped[date][timeKey][tNo] : null;
+        const hasRes = grouped[date] && grouped[date][timeKey] && grouped[date][timeKey][tNo];
+        if (!hasRes) tdNo.classList.add('available');
 
-        if (info) {
-          // Fill adult / child / other cells according to time type
-          const tdAdult = document.createElement("td"); tdAdult.className = "num"; tdAdult.textContent = info.numAdult || 0;
-          tr.appendChild(tdAdult);
+        if (hasRes) {
+          const info = grouped[date][timeKey][tNo];
+          const reservationTables = (info.tables || []).filter(x => TABLES.includes(x));
+          const orderedResTables = TABLES.filter(t => reservationTables.includes(t));
+          const isFirst = orderedResTables.length > 0 && orderedResTables[0] === tNo;
 
-          const tdChild = document.createElement("td"); tdChild.className = "childnum"; tdChild.textContent = info.numChild || 0;
-          tr.appendChild(tdChild);
+          if (isFirst) {
+            const rowspan = Math.max(1, orderedResTables.length);
 
-          if (timeKey === 'dinner') {
-            // dinner specific columns: time, course
-            const tdTime = document.createElement("td"); tdTime.textContent = info.dinnerTime || "";
-            tr.appendChild(tdTime);
+            // 大人人数
+            const tdNumA = document.createElement("td");
+            tdNumA.className = "num merged-cell";
+            tdNumA.textContent = info.numAdult;
+            tdNumA.rowSpan = rowspan;
+            tdNumA.style.verticalAlign = "middle";
+            tr.appendChild(tdNumA);
 
-            const tdCourse = document.createElement("td"); tdCourse.textContent = info.course || "";
-            tr.appendChild(tdCourse);
+            // 子ども人数
+            const tdNumC = document.createElement("td");
+            tdNumC.className = "childnum merged-cell";
+            tdNumC.textContent = info.numChild;
+            tdNumC.rowSpan = rowspan;
+            tdNumC.style.verticalAlign = "middle";
+            tr.appendChild(tdNumC);
 
-            const tdName = document.createElement("td"); tdName.textContent = info.name || "";
-            tr.appendChild(tdName);
+            if (timeKey === 'dinner') {
+              // 時間（ディナー時）
+              const tdTime = document.createElement("td");
+              tdTime.className = "time-cell merged-cell";
+              tdTime.textContent = info.dinnerTime || "";
+              tdTime.rowSpan = rowspan;
+              tdTime.style.verticalAlign = "middle";
+              tdTime.style.textAlign = "center";
+              tr.appendChild(tdTime);
 
-            const tdTel = document.createElement("td"); tdTel.textContent = info.tel || "";
-            tr.appendChild(tdTel);
+              // コース
+              const tdCourse = document.createElement("td");
+              tdCourse.className = "course-cell merged-cell";
+              tdCourse.textContent = info.course || "";
+              tdCourse.rowSpan = rowspan;
+              tdCourse.style.verticalAlign = "middle";
+              tdCourse.style.textAlign = "center";
+              tr.appendChild(tdCourse);
 
-            const tdNote = document.createElement("td"); tdNote.textContent = info.note || "";
+              // 名前
+              const tdName = document.createElement("td");
+              tdName.className = "reserved merged-cell";
+              tdName.textContent = info.name || "";
+              tdName.rowSpan = rowspan;
+              tdName.style.verticalAlign = "middle";
+              tr.appendChild(tdName);
+
+              // 電話
+              const tdTel = document.createElement("td");
+              tdTel.className = "phone merged-cell";
+              tdTel.textContent = info.tel || "";
+              tdTel.rowSpan = rowspan;
+              tdTel.style.verticalAlign = "middle";
+              tr.appendChild(tdTel);
+            } else {
+              // 非ディナー：名前
+              const tdName = document.createElement("td");
+              tdName.className = "reserved merged-cell";
+              tdName.textContent = info.name || "";
+              tdName.rowSpan = rowspan;
+              tdName.style.verticalAlign = "middle";
+              tr.appendChild(tdName);
+
+              // 非ディナー：電話
+              const tdTel = document.createElement("td");
+              tdTel.className = "phone merged-cell";
+              tdTel.textContent = info.tel || "";
+              tdTel.rowSpan = rowspan;
+              tdTel.style.verticalAlign = "middle";
+              tr.appendChild(tdTel);
+            }
+
+            // 備考（note）セル（先に備考を追加する）
+            const tdNote = document.createElement("td");
+            tdNote.className = "note-cell merged-cell";
+            let noteStr = [];
+            if (info.drinkCount && info.drinkCount > 0) noteStr.push(`飲み放題×${info.drinkCount}`);
+            if (info.childPlatePastaCount && info.childPlatePastaCount > 0) noteStr.push(`パスタ x${info.childPlatePastaCount}`);
+            if (info.childPlateHamburgerCount && info.childPlateHamburgerCount > 0) noteStr.push(`ハンバーグ x${info.childPlateHamburgerCount}`);
+            if (info.birthdayPlateCount && info.birthdayPlateCount > 0) noteStr.push(`誕生日プレート x${info.birthdayPlateCount}`);
+            if ((info.funamoriCount || 0) > 0) noteStr.push(`舟盛り x${info.funamoriCount}`);
+            if (info.note && info.note.trim() !== "") noteStr.push(info.note);
+            tdNote.textContent = noteStr.join("／");
+            tdNote.rowSpan = rowspan;
+            tdNote.style.verticalAlign = "middle";
+            tdNote.style.textAlign = "center";
             tr.appendChild(tdNote);
 
-            // 操作 cell placeholder (you may already have buttons here in original)
-            const tdAction = document.createElement("td"); tdAction.className = "action-cell";
-            // (If your original implementation added buttons here like edit/delete, copy them in.)
-            tr.appendChild(tdAction);
+            // 操作セル（削除／変更）
+            const tdAct = document.createElement("td");
+            tdAct.className = "action-cell merged-cell";
+            tdAct.rowSpan = rowspan;
+            tdAct.style.verticalAlign = "middle";
+            tdAct.style.textAlign = "center";
 
-            const tdStaff = document.createElement("td"); tdStaff.className = "staff-cell"; tdStaff.textContent = info.staff || "";
-            tr.appendChild(tdStaff);
-          } else {
-            // non-dinner: name, phone, note, action, staff
-            const tdName = document.createElement("td"); tdName.textContent = info.name || "";
-            tr.appendChild(tdName);
+            const removeBtn = document.createElement("button");
+            removeBtn.className = "act-btn";
+            removeBtn.textContent = "削除";
+            removeBtn.onclick = (ev) => {
+              ev.preventDefault();
+              ev.stopPropagation();
+              try {
+                // info を渡してモーダルを開く（内部でログ保存→削除を行う）
+                showDeleteModalForReservation(info);
+              } catch (e) {
+                // フォールバックで従来の confirm を使う
+                if (confirm("本当に削除してもよいですか？")) {
+                  db.collection(RES_COLLECTION).doc(info._id).delete().catch(err => { console.error(err); alert('削除に失敗しました'); });
+                }
+              }
+            };
 
-            const tdTel = document.createElement("td"); tdTel.textContent = info.tel || "";
-            tr.appendChild(tdTel);
+            const editBtn = document.createElement("button");
+            editBtn.className = "act-btn";
+            editBtn.textContent = "変更";
+            editBtn.style.marginLeft = "8px";
+            editBtn.onclick = () => { showEditForm(info, date, timeKey, tNo, selectedDate); };
 
-            const tdNote = document.createElement("td"); tdNote.textContent = info.note || "";
-            tr.appendChild(tdNote);
+            tdAct.appendChild(removeBtn);
+            tdAct.appendChild(editBtn);
+            tr.appendChild(tdAct);
 
-            const tdAction = document.createElement("td"); tdAction.className = "action-cell";
-            // (If your original implementation added buttons here like edit/delete, copy them in.)
-            tr.appendChild(tdAction);
-
-            const tdStaff = document.createElement("td"); tdStaff.className = "staff-cell"; tdStaff.textContent = info.staff || "";
+            // 担当者セル（右端）
+            const tdStaff = document.createElement("td");
+            tdStaff.className = "staff-cell merged-cell";
+            tdStaff.textContent = info.staff || "";
+            tdStaff.rowSpan = rowspan;
+            tdStaff.style.verticalAlign = "middle";
+            tdStaff.style.textAlign = "center";
             tr.appendChild(tdStaff);
           }
-
-          // accumulate totals
-          totalAdults += Number(info.numAdult || 0);
-          totalChildren += Number(info.numChild || 0);
         } else {
-          // Empty row: add placeholder / empty cells to keep column count
-          // add adult, child
-          const tdAdult = document.createElement("td"); tdAdult.className = "num"; tdAdult.textContent = "";
-          tr.appendChild(tdAdult);
-          const tdChild = document.createElement("td"); tdChild.className = "childnum"; tdChild.textContent = "";
-          tr.appendChild(tdChild);
+          // 空セルを、既に追加した tableNo/tCap の後に残りを埋める
+          const remaining = totalCols - 2; // we've already appended 2 cells
+          for (let i = 0; i < remaining; i++) {
+            const td = document.createElement("td");
+            td.className = "empty";
+            td.textContent = '';
+            tr.appendChild(td);
+          }
+        }
 
-          if (timeKey === 'dinner') {
-            // time, course, name, tel, note, action, staff => 7 cells
-            ['','', '', '', '', '', ''].forEach(_ => {
-              const td = document.createElement("td"); td.textContent = "";
-              tr.appendChild(td);
-            });
-          } else {
-            // name, tel, note, action, staff => 5 cells
-            ['','','','',''].forEach(_ => {
-              const td = document.createElement("td"); td.textContent = "";
-              tr.appendChild(td);
-            });
+        const nextTable = TABLES[tIndex + 1];
+        if (hasRes && nextTable) {
+          const nextInfo = grouped[date] && grouped[date][timeKey] && grouped[date][timeKey][nextTable];
+          if (nextInfo && nextInfo._id === grouped[date][timeKey][tNo]._id) {
+            tr.classList.add('no-divider');
           }
         }
 
         tbody.appendChild(tr);
       });
-
-      // --- Add totals row after all table rows ---
-      const trTotal = document.createElement("tr");
-      // label cell spanning first two columns (テーブル / キャパ)
-      const tdLabel = document.createElement("td");
-      tdLabel.colSpan = 2;
-      tdLabel.style.fontWeight = "700";
-      tdLabel.style.textAlign = "center";
-      tdLabel.textContent = "合計";
-      trTotal.appendChild(tdLabel);
-
-      // total adults cell
-      const tdTotalAdults = document.createElement("td");
-      tdTotalAdults.style.fontWeight = "700";
-      tdTotalAdults.textContent = String(totalAdults);
-      trTotal.appendChild(tdTotalAdults);
-
-      // total children cell
-      const tdTotalChildren = document.createElement("td");
-      tdTotalChildren.style.fontWeight = "700";
-      tdTotalChildren.textContent = String(totalChildren);
-      trTotal.appendChild(tdTotalChildren);
-
-      // remaining columns: fill with empty cell with colspan
-      const remaining = totalCols - 4;
-      const tdRest = document.createElement("td");
-      if (remaining > 0) tdRest.colSpan = remaining;
-      tdRest.textContent = "";
-      trTotal.appendChild(tdRest);
-
-      tbody.appendChild(trTotal);
 
       table.appendChild(tbody);
       tableWrap.appendChild(table);
