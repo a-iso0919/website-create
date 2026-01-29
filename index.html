@@ -985,6 +985,8 @@ function drawTable(res, selectedDate) {
 
       // Determine total number of columns for this table type (used for empty rows)
       const totalCols = (timeKey === 'dinner') ? 11 : 9; // matches thead definitions
+      let totalAdults = 0;
+      let totalChildren = 0;
 
       TABLES.forEach((tNo, tIndex) => {
         const tr = document.createElement("tr");
@@ -1028,6 +1030,8 @@ function drawTable(res, selectedDate) {
             tdNumC.rowSpan = rowspan;
             tdNumC.style.verticalAlign = "middle";
             tr.appendChild(tdNumC);
+            totalAdults += Number(info.numAdult || 0);
+            totalChildren += Number(info.numChild || 0);
 
             if (timeKey === 'dinner') {
               // 時間（ディナー時）
@@ -1161,6 +1165,37 @@ function drawTable(res, selectedDate) {
 
         tbody.appendChild(tr);
       });
+      // --- 追加：時間帯ブロックの合計行を tbody の最後に追加 ---
+      const trTotal = document.createElement("tr");
+
+      // 合計ラベル：テーブル / キャパ 列をまとめる（colspan=2）
+      const tdLabel = document.createElement("td");
+      tdLabel.colSpan = 2;
+      tdLabel.style.fontWeight = "700";
+      tdLabel.style.textAlign = "center";
+      tdLabel.textContent = "合計";
+      trTotal.appendChild(tdLabel);
+
+      // 合計：大人
+      const tdTotalAdults = document.createElement("td");
+      tdTotalAdults.style.fontWeight = "700";
+      tdTotalAdults.textContent = String(totalAdults);
+      trTotal.appendChild(tdTotalAdults);
+
+      // 合計：子ども
+      const tdTotalChildren = document.createElement("td");
+      tdTotalChildren.style.fontWeight = "700";
+      tdTotalChildren.textContent = String(totalChildren);
+      trTotal.appendChild(tdTotalChildren);
+
+      // 残り列を colspan で埋める（totalCols からここまで使った 4 列を引く）
+      const remaining = totalCols - 4;
+      const tdRest = document.createElement("td");
+      if (remaining > 0) tdRest.colSpan = remaining;
+      tdRest.textContent = "";
+      trTotal.appendChild(tdRest);
+
+      tbody.appendChild(trTotal);
 
       table.appendChild(tbody);
       tableWrap.appendChild(table);
